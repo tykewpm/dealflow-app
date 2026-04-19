@@ -1,0 +1,7 @@
+/* Minimal safe font setup so the import in index.css resolves without changing layout. */
+
+/* Use system UI stack to avoid loading external fonts by default. */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+

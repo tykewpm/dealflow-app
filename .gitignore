@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build / Vite
+dist/
+dist-ssr/
+.vite/
+
+# Environment (keep .env.example committed)
+.env
+.env.*
+!.env.example
+
+# Convex — local dev deployment cache (not the `convex/` source folder)
+.convex/
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.tsbuildinfo
+.cache/
+
+# Secrets — never commit keys
+*.pem
