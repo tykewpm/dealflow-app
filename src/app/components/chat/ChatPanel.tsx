@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type FormEvent, type RefObject } from 'react';
 import { Message, User } from '../../types';
 import { ChatMessage } from './ChatMessage';
 import { cn } from '../ui/utils';
 import { Button } from '../ui/button';
+import { X } from 'lucide-react';
 
 interface ChatPanelProps {
   messages: Message[];
@@ -12,6 +13,14 @@ interface ChatPanelProps {
   readOnly?: boolean;
   /** Merged onto the root element (e.g. responsive borders when stacked below the work pane). */
   className?: string;
+  /** Controlled composer text (e.g. mobile sheet — survives close/reopen). Omit for internal state. */
+  messageDraft?: string;
+  onMessageDraftChange?: (value: string) => void;
+  /** Focus composer when mobile sheet opens. */
+  composerInputRef?: RefObject<HTMLInputElement | null>;
+  /** Optional close control (e.g. mobile bottom sheet). */
+  onClose?: () => void;
+  showCloseButton?: boolean;
 }
 
 export function ChatPanel({
@@ -21,8 +30,17 @@ export function ChatPanel({
   onSendMessage,
   readOnly = false,
   className,
+  messageDraft: controlledDraft,
+  onMessageDraftChange,
+  composerInputRef,
+  onClose,
+  showCloseButton = false,
 }: ChatPanelProps) {
-  const [newMessage, setNewMessage] = useState('');
+  const [internalDraft, setInternalDraft] = useState('');
+  const isControlled = controlledDraft !== undefined && onMessageDraftChange !== undefined;
+  const newMessage = isControlled ? controlledDraft : internalDraft;
+  const setNewMessage = isControlled ? onMessageDraftChange : setInternalDraft;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -33,7 +51,7 @@ export function ChatPanel({
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (readOnly) return;
     if (newMessage.trim()) {
@@ -49,20 +67,32 @@ export function ChatPanel({
   return (
     <div
       className={cn(
-        'flex h-full flex-col border-l border-border-subtle bg-gradient-to-b from-bg-app/95 via-bg-surface to-bg-surface dark:from-bg-surface dark:via-bg-surface dark:to-bg-elevated/30',
+        'flex h-full min-h-0 flex-col border-l border-border-subtle bg-gradient-to-b from-bg-app/95 via-bg-surface to-bg-surface dark:from-bg-surface dark:via-bg-surface dark:to-bg-elevated/30',
         className,
       )}
     >
       {/* Chat Header */}
-      <div className="h-[70px] flex-shrink-0 border-b border-border-subtle bg-bg-surface/90 px-4 py-3 backdrop-blur-[2px] transition-[background-color,border-color] duration-150 ease-out dark:bg-bg-elevated/60 sm:px-5">
-        <h2 className="text-sm font-semibold tracking-tight text-text-primary">Deal Chat</h2>
-        <p className="mt-0.5 text-xs text-text-muted">
-          {messages.length} {messages.length === 1 ? 'message' : 'messages'}
-        </p>
+      <div className="flex h-[70px] flex-shrink-0 items-start justify-between gap-2 border-b border-border-subtle bg-bg-surface/90 px-4 py-3 backdrop-blur-[2px] transition-[background-color,border-color] duration-150 ease-out dark:bg-bg-elevated/60 sm:px-5">
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold tracking-tight text-text-primary">Deal Chat</h2>
+          <p className="mt-0.5 text-xs text-text-muted">
+            {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+          </p>
+        </div>
+        {showCloseButton && onClose ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-text-muted transition-[color,background-color] duration-150 ease-out hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/30"
+            aria-label="Close chat"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        ) : null}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-3 sm:px-5">
         <div className="space-y-3">
           {messages.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border-subtle bg-bg-elevated/40 py-8 text-center transition-colors duration-150 dark:bg-bg-elevated/25">
@@ -88,7 +118,7 @@ export function ChatPanel({
       </div>
 
       {/* Message Input */}
-      <div className="flex-shrink-0 border-t border-border-subtle bg-bg-surface/90 px-4 py-3 backdrop-blur-[2px] transition-[background-color,border-color] duration-150 ease-out dark:bg-bg-elevated/50 sm:px-5">
+      <div className="flex-shrink-0 border-t border-border-subtle bg-bg-surface/90 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] transition-[background-color,border-color] duration-150 ease-out dark:bg-bg-elevated/50 sm:px-5">
         <form onSubmit={handleSubmit}>
           <div
             className={`flex gap-2 rounded-lg border border-border-subtle bg-input-bg p-1 shadow-sm transition-[border-color,box-shadow] duration-150 ease-out focus-within:border-accent-blue focus-within:ring-2 focus-within:ring-[color:var(--input-focus-ring)] dark:shadow-none ${
@@ -96,6 +126,7 @@ export function ChatPanel({
             }`}
           >
             <input
+              ref={composerInputRef}
               type="text"
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}

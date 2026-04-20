@@ -14,6 +14,7 @@ import {
   DocumentItem,
   DocumentStatus,
   Message,
+  SignatureStatus,
   Task,
   User,
 } from './types';
@@ -356,6 +357,43 @@ function AppContentConvex() {
   );
 }
 
+/**
+ * Inner `<Routes>` match against the full URL. For `/demo/*`, paths are authored as `/`, `/transactions`, …
+ * so we remap `location` to strip the `/demo` prefix for matching only (links still use `useWorkspaceGo`).
+ */
+function WorkspaceInnerRoutes({
+  basename,
+  children,
+}: {
+  basename?: string;
+  children: ReactNode;
+}) {
+  const location = useLocation();
+  const scopedLocation = useMemo(() => {
+    if (!basename) return location;
+    const p = location.pathname;
+    if (p === basename || p === `${basename}/`) {
+      return { ...location, pathname: '/' };
+    }
+    if (p.startsWith(`${basename}/`)) {
+      const rest = p.slice(basename.length);
+      return { ...location, pathname: rest || '/' };
+    }
+    return location;
+  }, [basename, location]);
+
+  return <Routes location={scopedLocation}>{children}</Routes>;
+}
+
+/**
+ * Inner workspace route tree — **not** top-level `App` routes.
+ *
+ * Renders inside {@link WorkspaceEntry} (main app `path="/*"`), behind `AppShell`. Keep auth (`/login`, …),
+ * demo (`/demo/*`), and this workspace UI separate: top shell in `App`, signed-in pages here.
+ *
+ * Core paths: `/`, `/transactions`, `/templates`, `/agents`, `/reports`, `/workspace/roster`, `/deals/new`,
+ * `/deals/:dealId` (plus templates builder, shared template, deal-health demo, …).
+ */
 function WorkspaceRoutes({
   basename,
   workspaceLoading = false,
@@ -426,7 +464,8 @@ function WorkspaceRoutes({
           onSignOut,
         }}
       >
-        <Routes {...(basename ? { basename } : {})}>
+        {/* Nested workspace routes — `WorkspaceInnerRoutes` strips `/demo` for matching when `basename` is set. */}
+        <WorkspaceInnerRoutes basename={basename}>
         <Route
           path="/"
           element={
@@ -543,7 +582,7 @@ function WorkspaceRoutes({
             />
           }
         />
-        </Routes>
+        </WorkspaceInnerRoutes>
       </AppShell>
     </WorkspaceLinkBaseProvider>
   );
@@ -750,7 +789,7 @@ function CreateDealPageConvex({ defaultAssigneeId }: { defaultAssigneeId: string
       const documentRows = namedDocDrafts.map((d) => ({
         name: d.name.trim(),
         status: 'not-started' as const,
-        signatureStatus: (d.signatureRequired ? 'requested' : 'not-required') as const,
+        signatureStatus: (d.signatureRequired ? 'requested' : 'not-required') as SignatureStatus,
       }));
 
       try {
@@ -1241,6 +1280,7 @@ function ConvexAuthenticatedWorkspace() {
   return <AppContentConvex />;
 }
 
+/** Main signed-in workspace entry (`App` route `path="/*"`). Delegates to mock or Convex; inner pages live in `WorkspaceRoutes`. */
 function WorkspaceEntry() {
   /** Explicit mock branch — never mount Convex auth/workspace subscription gate for demo data. */
   if (getDealDataSourceMode() === 'mock') {
@@ -1278,23 +1318,43 @@ export default function App() {
   return (
     <Routes>
       <Route path="/demo/*" element={<IsolatedDemoWorkspaceRoot />} />
-      {mockMode ? (
-        <>
-          <Route path="/login" element={<Navigate to="/" replace />} />
-          <Route path="/signup" element={<Navigate to="/" replace />} />
-          <Route path="/forgot-password" element={<Navigate to="/" replace />} />
-          <Route path="/*" element={<WorkspaceEntry />} />
-        </>
-      ) : (
-        <>
-          <Route element={<AuthLayout />}>
-            <Route path="login" element={<LoginPage />} />
-            <Route path="signup" element={<SignUpPage />} />
-            <Route path="forgot-password" element={<ForgotPasswordPage />} />
-          </Route>
-          <Route path="/*" element={<WorkspaceEntry />} />
-        </>
-      )}
+      <Route
+        path="/login"
+        element={
+          mockMode ? (
+            <Navigate to="/" replace />
+          ) : (
+            <AuthLayout>
+              <LoginPage />
+            </AuthLayout>
+          )
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          mockMode ? (
+            <Navigate to="/" replace />
+          ) : (
+            <AuthLayout>
+              <SignUpPage />
+            </AuthLayout>
+          )
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          mockMode ? (
+            <Navigate to="/" replace />
+          ) : (
+            <AuthLayout>
+              <ForgotPasswordPage />
+            </AuthLayout>
+          )
+        }
+      />
+      <Route path="/*" element={<WorkspaceEntry />} />
     </Routes>
   );
 }

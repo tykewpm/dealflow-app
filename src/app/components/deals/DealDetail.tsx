@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useIsMobile } from '../ui/use-mobile';
 import {
   Deal,
   DealPipelineStage,
@@ -13,6 +14,7 @@ import { ProgressBar } from '../shared/ProgressBar';
 import { NextActionCard } from '../shared/NextActionCard';
 import { TaskList } from '../tasks/TaskList';
 import { ChatPanel } from '../chat/ChatPanel';
+import { DealChatMobileDock } from './DealChatMobileDock';
 import { DocumentList } from '../documents/DocumentList';
 import { AddDocumentModal } from '../documents/AddDocumentModal';
 import { calculateProgress, countAtRiskItems, formatDate } from '../../utils/dealUtils';
@@ -118,6 +120,12 @@ export function DealDetail({
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const summarySentinelRef = useRef<HTMLDivElement>(null);
   const nextActionCelebrationAnchorRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [mobileChatDraft, setMobileChatDraft] = useState('');
+
+  useEffect(() => {
+    setMobileChatDraft('');
+  }, [deal.id]);
 
   useEffect(() => {
     const root = scrollRootRef.current;
@@ -247,7 +255,7 @@ export function DealDetail({
           )}
         </div>
       )}
-      {/* Work surface: stacked on small screens (chat below); side-by-side from `lg`. */}
+      {/* Work surface: stacked on small screens; chat is inline from `lg+`. On narrow viewports chat is a floating dock + sheet. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-border-subtle bg-bg-app lg:w-3/5 lg:border-b-0 lg:border-r">
           <div
@@ -568,17 +576,32 @@ export function DealDetail({
           </div>
         </div>
 
-        <div className="flex h-[min(42vh,24rem)] min-h-[260px] w-full shrink-0 flex-col lg:h-auto lg:min-h-0 lg:w-2/5 lg:min-w-0 lg:max-w-none">
-          <ChatPanel
-            messages={messages}
-            users={users}
-            currentUserId={currentUserId}
-            onSendMessage={(text) => onSendMessage(deal.id, text)}
-            readOnly={readOnly && !allowDealChat}
-            className="border-l-0 border-t border-border-subtle lg:border-l lg:border-t-0"
-          />
+        <div className="hidden min-h-0 w-full shrink-0 flex-col lg:flex lg:h-auto lg:w-2/5 lg:min-h-0 lg:min-w-0 lg:max-w-none">
+          <div className="flex h-[min(42vh,24rem)] min-h-[260px] w-full flex-1 flex-col lg:h-auto lg:min-h-0">
+            <ChatPanel
+              messages={messages}
+              users={users}
+              currentUserId={currentUserId}
+              onSendMessage={(text) => onSendMessage(deal.id, text)}
+              readOnly={readOnly && !allowDealChat}
+              className="border-l-0 border-t border-border-subtle lg:border-l lg:border-t-0"
+            />
+          </div>
         </div>
       </div>
+
+      {isMobile ? (
+        <DealChatMobileDock
+          key={deal.id}
+          messages={messages}
+          users={users}
+          currentUserId={currentUserId}
+          onSendMessage={(text) => onSendMessage(deal.id, text)}
+          readOnly={readOnly && !allowDealChat}
+          messageDraft={mobileChatDraft}
+          onMessageDraftChange={setMobileChatDraft}
+        />
+      ) : null}
 
       {/* Add Document Modal */}
       <AddDocumentModal

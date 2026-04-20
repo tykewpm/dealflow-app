@@ -42,7 +42,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap text-text-muted transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/25 data-[state=active]:border-border-strong/80 data-[state=active]:bg-bg-surface data-[state=active]:text-text-primary data-[state=active]:shadow-none dark:data-[state=active]:border-accent-blue/20 dark:data-[state=active]:bg-accent-blue-soft dark:data-[state=active]:text-text-primary disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4',
+        'inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap text-text-muted transition-[color,background-color,border-color,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/25 data-[state=active]:border-border-strong/80 data-[state=active]:bg-bg-surface data-[state=active]:text-text-primary data-[state=active]:shadow-none dark:data-[state=active]:border-accent-blue/20 dark:data-[state=active]:bg-accent-blue-soft dark:data-[state=active]:text-text-primary disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4',
         className,
       )}
       {...props}
