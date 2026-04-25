@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useConvexAuth } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
+import { AuthAlert } from './AuthAlert';
 import { AuthCard } from './AuthCard';
+import { AuthFooterLink } from './AuthFooterLink';
+import { AuthSubmitButton } from './AuthSubmitButton';
+import { authInputClass, authLabelClass } from './authFormClasses';
+import { mapAuthErrorToMessage } from './mapAuthErrorToMessage';
 import { Button } from '../ui/button';
-
-const inputClass =
-  'mt-1 w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary shadow-none transition-colors placeholder:text-text-muted focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-accent-blue/25';
 
 function SignUpPageDemo() {
   const [email, setEmail] = useState('');
@@ -15,10 +17,11 @@ function SignUpPageDemo() {
 
   return (
     <AuthCard
-      title="Create account"
-      description="Form layout for future sign-up — no account is created yet."
+      className="min-h-[480px]"
+      title="Create your workspace"
+      description="Start tracking deals, deadlines, and documents in one place."
     >
-      <div className="mb-6 rounded-lg border border-border-subtle bg-accent-amber-soft px-3 py-2.5 text-left text-xs text-text-primary">
+      <div className="mb-6 rounded-xl border border-border-subtle bg-bg-surface/80 px-3 py-3 text-left text-xs leading-relaxed text-text-secondary dark:bg-bg-surface/50">
         Registration is not wired to a backend yet. Continue with the demo workspace to explore the product.
       </div>
 
@@ -30,8 +33,8 @@ function SignUpPageDemo() {
         noValidate
       >
         <div>
-          <label htmlFor="signup-org" className="text-sm font-medium text-text-primary">
-            Organization (optional)
+          <label htmlFor="signup-org" className={authLabelClass}>
+            Organization <span className="font-normal text-text-muted">(optional)</span>
           </label>
           <input
             id="signup-org"
@@ -40,12 +43,12 @@ function SignUpPageDemo() {
             autoComplete="organization"
             value={organization}
             onChange={(e) => setOrganization(e.target.value)}
-            className={inputClass}
+            className={authInputClass}
             placeholder="Your team or brokerage"
           />
         </div>
         <div>
-          <label htmlFor="signup-email" className="text-sm font-medium text-text-primary">
+          <label htmlFor="signup-email" className={authLabelClass}>
             Email
           </label>
           <input
@@ -55,12 +58,12 @@ function SignUpPageDemo() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={inputClass}
+            className={authInputClass}
             placeholder="you@company.com"
           />
         </div>
         <div>
-          <label htmlFor="signup-password" className="text-sm font-medium text-text-primary">
+          <label htmlFor="signup-password" className={authLabelClass}>
             Password
           </label>
           <input
@@ -70,45 +73,53 @@ function SignUpPageDemo() {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
+            className={authInputClass}
             placeholder="••••••••"
           />
         </div>
 
-        <Button type="submit" variant="secondary" disabled title="Account creation will use your auth provider when configured." className="w-full">
-          Create account
+        <p className="text-xs leading-relaxed text-text-muted">Your workspace will be created automatically.</p>
+
+        <Button
+          type="submit"
+          variant="secondary"
+          disabled
+          title="Account creation will use Convex Auth when configured."
+          className="min-h-10 w-full"
+        >
+          Create workspace
         </Button>
 
-        <Button type="button" variant="accent" asChild className="w-full">
+        <Button type="button" variant="accent" asChild className="min-h-10 w-full">
           <Link to="/demo">Open demo workspace</Link>
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-text-secondary">
-        Already have an account?{' '}
-        <Link to="/login" className="font-medium text-accent-blue hover:underline">
-          Sign in
-        </Link>
+        Already have an account? <AuthFooterLink to="/login">Sign in</AuthFooterLink>
       </p>
     </AuthCard>
   );
 }
+
+type SignupPhase = 'form' | 'provisioning';
 
 function SignUpPageConvex() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phase, setPhase] = useState<SignupPhase>('form');
   const { signIn } = useAuthActions();
   const navigate = useNavigate();
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated) {
-      navigate('/', { replace: true });
-    }
-  }, [isLoading, isAuthenticated, navigate]);
+    if (!isAuthenticated) return;
+    if (phase === 'provisioning') return;
+    navigate('/', { replace: true });
+  }, [isLoading, isAuthenticated, navigate, phase]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,28 +131,45 @@ function SignUpPageConvex() {
         email: email.trim(),
         password,
       });
-      navigate('/', { replace: true });
+      setPhase('provisioning');
+      window.setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 1400);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create account.');
+      setError(mapAuthErrorToMessage(err, 'signup'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (phase === 'provisioning') {
+    return (
+      <AuthCard className="min-h-[480px]" title="Setting up your workspace…" description="Creating your dashboard and transaction pipeline.">
+        <div className="flex justify-center py-10" aria-hidden>
+          <div className="size-10 rounded-full border-2 border-border-subtle border-t-accent-blue animate-spin" />
+        </div>
+        <AuthAlert variant="info">
+          <p className="text-sm text-text-secondary">You&apos;ll be redirected automatically.</p>
+        </AuthAlert>
+      </AuthCard>
+    );
+  }
+
   return (
     <AuthCard
-      title="Create account"
-      description="Create a password-backed account for this Convex deployment."
+      className="min-h-[480px]"
+      title="Create your workspace"
+      description="Start tracking deals, deadlines, and documents in one place."
     >
       {error ? (
-        <div className="mb-4 rounded-lg border border-border-subtle bg-accent-red-soft px-3 py-2 text-left text-sm text-text-primary">
+        <AuthAlert variant="error" id="signup-auth-error">
           {error}
-        </div>
+        </AuthAlert>
       ) : null}
 
       <form className="space-y-4" onSubmit={(e) => void onSubmit(e)} noValidate>
         <div>
-          <label htmlFor="signup-email" className="text-sm font-medium text-text-primary">
+          <label htmlFor="signup-email" className={authLabelClass}>
             Email
           </label>
           <input
@@ -152,12 +180,15 @@ function SignUpPageConvex() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className={inputClass}
+            disabled={submitting}
+            className={authInputClass}
             placeholder="you@company.com"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? 'signup-auth-error' : undefined}
           />
         </div>
         <div>
-          <label htmlFor="signup-password" className="text-sm font-medium text-text-primary">
+          <label htmlFor="signup-password" className={authLabelClass}>
             Password
           </label>
           <input
@@ -168,21 +199,27 @@ function SignUpPageConvex() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={inputClass}
-            placeholder="••••••••"
+            disabled={submitting}
+            className={authInputClass}
+            placeholder="At least 8 characters"
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? 'signup-auth-error' : undefined}
           />
         </div>
 
-        <Button type="submit" variant="accent" disabled={submitting} className="w-full">
-          {submitting ? 'Creating account…' : 'Create account'}
+        <p className="text-xs leading-relaxed text-text-muted">Your workspace will be created automatically.</p>
+
+        <AuthSubmitButton loading={submitting} loadingLabel="Creating workspace…">
+          Create workspace
+        </AuthSubmitButton>
+
+        <Button type="button" variant="outline" asChild className="min-h-10 w-full">
+          <Link to="/demo">Open demo workspace</Link>
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-text-secondary">
-        Already have an account?{' '}
-        <Link to="/login" className="font-medium text-accent-blue hover:underline">
-          Sign in
-        </Link>
+        Already have an account? <AuthFooterLink to="/login">Sign in</AuthFooterLink>
       </p>
     </AuthCard>
   );

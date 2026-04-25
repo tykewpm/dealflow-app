@@ -321,11 +321,12 @@ function AppContentConvex() {
   /** Full-screen onboarding: auto-claim in progress or roster mismatch after automatic claim. */
   if (!convexSnapshot.isLoading && onboarding.showClaimingOverlay) {
     return (
-      <div className="h-screen flex items-center justify-center bg-bg-app p-6">
+      <div className="flex h-screen items-center justify-center bg-bg-app p-6">
         <WorkspaceLoadingPanel
-          title="Linking your account…"
-          subtitle="Matching your sign-in email to the workspace roster."
-          className="max-w-md w-full"
+          showSpinner
+          title="Setting up your workspace…"
+          subtitle="This will just take a second."
+          className="w-full max-w-md"
         />
       </div>
     );
