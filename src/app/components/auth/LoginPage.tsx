@@ -6,6 +6,7 @@ import { AuthAlert } from './AuthAlert';
 import { AuthCard } from './AuthCard';
 import { AuthFooterLink } from './AuthFooterLink';
 import { AuthSubmitButton } from './AuthSubmitButton';
+import { AuthPasswordField } from './AuthPasswordField';
 import { authInputClass, authLabelClass } from './authFormClasses';
 import { mapAuthErrorToMessage } from './mapAuthErrorToMessage';
 import { Button } from '../ui/button';
@@ -47,21 +48,15 @@ function LoginPageDemo() {
             placeholder="you@company.com"
           />
         </div>
-        <div>
-          <label htmlFor="login-password" className={authLabelClass}>
-            Password
-          </label>
-          <input
-            id="login-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={authInputClass}
-            placeholder="••••••••"
-          />
-        </div>
+        <AuthPasswordField
+          id="login-password"
+          name="password"
+          label="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+        />
 
         <div className="flex items-center justify-between text-sm">
           <AuthFooterLink to="/forgot-password">Forgot password?</AuthFooterLink>
@@ -170,25 +165,19 @@ function LoginPageConvex() {
             aria-describedby={error ? 'login-auth-error' : undefined}
           />
         </div>
-        <div>
-          <label htmlFor="login-password" className={authLabelClass}>
-            Password
-          </label>
-          <input
-            id="login-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={submitting}
-            className={authInputClass}
-            placeholder="••••••••"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'login-auth-error' : undefined}
-          />
-        </div>
+        <AuthPasswordField
+          id="login-password"
+          name="password"
+          label="Password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={submitting}
+          placeholder="••••••••"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? 'login-auth-error' : undefined}
+        />
 
         <div className="flex items-center justify-between text-sm">
           <AuthFooterLink to="/forgot-password">Forgot password?</AuthFooterLink>

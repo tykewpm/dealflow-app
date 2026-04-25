@@ -6,6 +6,7 @@ import { AuthAlert } from './AuthAlert';
 import { AuthCard } from './AuthCard';
 import { AuthFooterLink } from './AuthFooterLink';
 import { AuthSubmitButton } from './AuthSubmitButton';
+import { AuthPasswordField } from './AuthPasswordField';
 import { authInputClass, authLabelClass } from './authFormClasses';
 import { mapAuthErrorToMessage } from './mapAuthErrorToMessage';
 import { Button } from '../ui/button';
@@ -62,21 +63,15 @@ function SignUpPageDemo() {
             placeholder="you@company.com"
           />
         </div>
-        <div>
-          <label htmlFor="signup-password" className={authLabelClass}>
-            Password
-          </label>
-          <input
-            id="signup-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={authInputClass}
-            placeholder="••••••••"
-          />
-        </div>
+        <AuthPasswordField
+          id="signup-password"
+          name="password"
+          label="Password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="••••••••"
+        />
 
         <p className="text-xs leading-relaxed text-text-muted">Your workspace will be created automatically.</p>
 
@@ -187,25 +182,19 @@ function SignUpPageConvex() {
             aria-describedby={error ? 'signup-auth-error' : undefined}
           />
         </div>
-        <div>
-          <label htmlFor="signup-password" className={authLabelClass}>
-            Password
-          </label>
-          <input
-            id="signup-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={submitting}
-            className={authInputClass}
-            placeholder="At least 8 characters"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'signup-auth-error' : undefined}
-          />
-        </div>
+        <AuthPasswordField
+          id="signup-password"
+          name="password"
+          label="Password"
+          autoComplete="new-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={submitting}
+          placeholder="At least 8 characters"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? 'signup-auth-error' : undefined}
+        />
 
         <p className="text-xs leading-relaxed text-text-muted">Your workspace will be created automatically.</p>
 
