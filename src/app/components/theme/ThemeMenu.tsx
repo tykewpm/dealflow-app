@@ -10,7 +10,7 @@ import {
 import { cn } from '../ui/utils';
 
 const triggerBase =
-  'rounded-lg p-2 text-text-muted outline-none transition-[color,background-color,border-color] duration-150 ease-out hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/25';
+  'w-[215px] rounded-lg p-2 text-text-muted outline-none transition-[color,background-color,border-color] duration-150 ease-out hover:bg-bg-elevated hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/25';
 
 export function ThemeMenu({ className }: { className?: string }) {
   const { theme, setTheme, resolvedTheme } = useTheme();

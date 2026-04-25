@@ -1,9 +1,18 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+  useParams,
+  useLocation,
+  useOutletContext,
+} from 'react-router-dom';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { LoginPage } from './components/auth/LoginPage';
 import { SignUpPage } from './components/auth/SignUpPage';
 import { ForgotPasswordPage } from './components/auth/ForgotPasswordPage';
+import { AuthDisabledInMockModePage } from './components/auth/AuthDisabledInMockModePage';
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
@@ -20,8 +29,6 @@ import {
 } from './types';
 import { mockDeals, mockTasks, mockMessages, mockDocuments, mockUsers } from './data/mockData';
 import {
-  beginIsolatedDemoWorkspace,
-  endIsolatedDemoWorkspace,
   getDealDataSourceMode,
   isWorkspaceReadOnly,
   shouldUseConvexWorkspaceReads,
@@ -56,9 +63,15 @@ import {
 import { appendDocumentsFromTemplate, appendTasksFromTemplate } from './utils/applyTemplateToDeal';
 import { determineTaskStatus } from './utils/dealUtils';
 import { getMarkDocumentCompletePatch } from './utils/documentHelpers';
+import {
+  DemoAppRoot,
+  DemoRouteNotFound,
+  DemoWorkspaceShell,
+  type DemoWorkspaceOutletContext,
+} from './demo/DemoApp';
 
 /** Mock workspace — local state only; does not call Convex hooks (no provider required). */
-function AppContentMock({ basename }: { basename?: string }) {
+function AppContentMock() {
   const [deals, setDeals] = useState<Deal[]>(mockDeals);
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
@@ -107,7 +120,6 @@ function AppContentMock({ basename }: { basename?: string }) {
 
   return (
     <WorkspaceRoutes
-      basename={basename}
       workspaceLoading={false}
       workspaceReadOnly={false}
       templateApplyDisabled={false}
@@ -255,30 +267,6 @@ function AppContentConvex() {
   const handleSignOut = () =>
     void signOut().then(() => navigate('/login', { replace: true }));
 
-  /** Full-screen onboarding: auto-claim in progress or roster mismatch after automatic claim. */
-  if (!convexSnapshot.isLoading && onboarding.showClaimingOverlay) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-bg-app p-6">
-        <WorkspaceLoadingPanel
-          title="Linking your account…"
-          subtitle="Matching your sign-in email to the workspace roster."
-          className="max-w-md w-full"
-        />
-      </div>
-    );
-  }
-
-  if (!convexSnapshot.isLoading && onboarding.showNoAccessGate) {
-    return (
-      <WorkspaceMembershipGate
-        email={sessionEmail}
-        blockKind={onboarding.membershipBlockKind}
-        onRetry={onboarding.retry}
-        onSignOut={handleSignOut}
-      />
-    );
-  }
-
   const emailFallbackBanner: ReactNode =
     sessionEmail && identityMode === 'session-fallback' ? (
       <span>
@@ -289,6 +277,7 @@ function AppContentConvex() {
 
   const identityBanner: ReactNode = emailFallbackBanner;
 
+  /** Must run before any conditional returns — hooks cannot follow early `return`s. */
   const welcomeBanner = useMemo(() => {
     if (convexSnapshot.isLoading || convexSnapshot.workspaceAccess !== 'ok') return undefined;
     if (identityMode !== 'session') return undefined;
@@ -329,6 +318,30 @@ function AppContentConvex() {
     welcomeStripDismissTick,
   ]);
 
+  /** Full-screen onboarding: auto-claim in progress or roster mismatch after automatic claim. */
+  if (!convexSnapshot.isLoading && onboarding.showClaimingOverlay) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-bg-app p-6">
+        <WorkspaceLoadingPanel
+          title="Linking your account…"
+          subtitle="Matching your sign-in email to the workspace roster."
+          className="max-w-md w-full"
+        />
+      </div>
+    );
+  }
+
+  if (!convexSnapshot.isLoading && onboarding.showNoAccessGate) {
+    return (
+      <WorkspaceMembershipGate
+        email={sessionEmail}
+        blockKind={onboarding.membershipBlockKind}
+        onRetry={onboarding.retry}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
   return (
     <WorkspaceRoutes
       workspaceLoading={convexSnapshot.isLoading}
@@ -358,44 +371,15 @@ function AppContentConvex() {
 }
 
 /**
- * Inner `<Routes>` match against the full URL. For `/demo/*`, paths are authored as `/`, `/transactions`, …
- * so we remap `location` to strip the `/demo` prefix for matching only (links still use `useWorkspaceGo`).
- */
-function WorkspaceInnerRoutes({
-  basename,
-  children,
-}: {
-  basename?: string;
-  children: ReactNode;
-}) {
-  const location = useLocation();
-  const scopedLocation = useMemo(() => {
-    if (!basename) return location;
-    const p = location.pathname;
-    if (p === basename || p === `${basename}/`) {
-      return { ...location, pathname: '/' };
-    }
-    if (p.startsWith(`${basename}/`)) {
-      const rest = p.slice(basename.length);
-      return { ...location, pathname: rest || '/' };
-    }
-    return location;
-  }, [basename, location]);
-
-  return <Routes location={scopedLocation}>{children}</Routes>;
-}
-
-/**
  * Inner workspace route tree — **not** top-level `App` routes.
  *
- * Renders inside {@link WorkspaceEntry} (main app `path="/*"`), behind `AppShell`. Keep auth (`/login`, …),
- * demo (`/demo/*`), and this workspace UI separate: top shell in `App`, signed-in pages here.
+ * Renders inside {@link AuthenticatedApp} (`path="/*"`), behind `AppShell`. Public demo uses nested routes
+ * under `/demo` in `App` — not this tree.
  *
  * Core paths: `/`, `/transactions`, `/templates`, `/agents`, `/reports`, `/workspace/roster`, `/deals/new`,
  * `/deals/:dealId` (plus templates builder, shared template, deal-health demo, …).
  */
 function WorkspaceRoutes({
-  basename,
   workspaceLoading = false,
   workspaceReadOnly,
   templateApplyDisabled,
@@ -419,8 +403,6 @@ function WorkspaceRoutes({
   onWorkloadTaskAssigneeChange,
   onSetDealArchived,
 }: {
-  /** When set (e.g. `/demo`), routes and sidebar navigation stay under that prefix without Convex. */
-  basename?: string;
   workspaceLoading?: boolean;
   workspaceReadOnly: boolean;
   /** When true, template Apply CTAs stay disabled (e.g. future gating). */
@@ -451,7 +433,7 @@ function WorkspaceRoutes({
   onSetDealArchived: (dealId: string, archived: boolean) => void;
 }) {
   return (
-    <WorkspaceLinkBaseProvider value={basename ?? ''}>
+    <WorkspaceLinkBaseProvider value="">
       <AppShell
         welcomeBanner={welcomeBanner}
         identityBanner={identityBanner}
@@ -464,8 +446,7 @@ function WorkspaceRoutes({
           onSignOut,
         }}
       >
-        {/* Nested workspace routes — `WorkspaceInnerRoutes` strips `/demo` for matching when `basename` is set. */}
-        <WorkspaceInnerRoutes basename={basename}>
+        <Routes>
         <Route
           path="/"
           element={
@@ -544,10 +525,7 @@ function WorkspaceRoutes({
           path="/workspace/roster"
           element={<WorkspaceRosterPage />}
         />
-        <Route
-          path="/demo/deal-health"
-          element={<DealHealthDemo />}
-        />
+        <Route path="/deal-health" element={<DealHealthDemo />} />
         <Route
           path="/deals/new"
           element={
@@ -582,7 +560,15 @@ function WorkspaceRoutes({
             />
           }
         />
-        </WorkspaceInnerRoutes>
+        <Route
+          path="*"
+          element={
+            <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 p-8 text-center text-sm text-text-muted">
+              Route not found
+            </div>
+          }
+        />
+        </Routes>
       </AppShell>
     </WorkspaceLinkBaseProvider>
   );
@@ -1250,6 +1236,111 @@ function DealDetailPageConvex({
   );
 }
 
+// --- Public `/demo/*` nested routes (outlet context from `DemoWorkspaceShell`)
+
+function DemoWorkspaceIndex() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <DashboardPage
+      workspaceLoading={false}
+      deals={ctx.deals}
+      tasks={ctx.tasks}
+      messages={ctx.messages}
+      documents={ctx.documents}
+      createDealDisabled={false}
+      onSetDealArchived={ctx.onSetDealArchived}
+    />
+  );
+}
+
+function DemoTransactions() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <TransactionsPageRoute
+      workspaceLoading={false}
+      deals={ctx.deals}
+      tasks={ctx.tasks}
+      messages={ctx.messages}
+      documents={ctx.documents}
+      createDealDisabled={false}
+    />
+  );
+}
+
+function DemoTemplates() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <TemplatesPage
+      workspaceLoading={false}
+      deals={ctx.deals}
+      onApplyTemplate={ctx.onApplyTemplate}
+      templateApplyDisabled={false}
+    />
+  );
+}
+
+function DemoSharedTemplate() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <SharedTemplateView
+      workspaceLoading={false}
+      deals={ctx.deals}
+      onApplyTemplate={ctx.onApplyTemplate}
+      templateApplyDisabled={false}
+    />
+  );
+}
+
+function DemoAgents() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <AgentsPage
+      deals={ctx.deals}
+      tasks={ctx.tasks}
+      documents={ctx.documents}
+      users={ctx.users}
+      workspaceLoading={false}
+      onWorkloadTaskAssigneeChange={ctx.onWorkloadTaskAssignee}
+    />
+  );
+}
+
+function DemoCreateDeal() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <CreateDealPage
+      deals={ctx.deals}
+      setDeals={ctx.setDeals}
+      tasks={ctx.tasks}
+      setTasks={ctx.setTasks}
+      documents={ctx.documents}
+      setDocuments={ctx.setDocuments}
+      defaultAssigneeId={ctx.currentUserId}
+    />
+  );
+}
+
+function DemoDealDetail() {
+  const ctx = useOutletContext<DemoWorkspaceOutletContext>();
+  return (
+    <DealDetailPage
+      workspaceLoading={false}
+      workspaceReadOnly={false}
+      deals={ctx.deals}
+      setDeals={ctx.setDeals}
+      tasks={ctx.tasks}
+      setTasks={ctx.setTasks}
+      messages={ctx.messages}
+      setMessages={ctx.setMessages}
+      documents={ctx.documents}
+      setDocuments={ctx.setDocuments}
+      users={ctx.users}
+      currentUserId={ctx.currentUserId}
+      onSetDealArchived={ctx.onSetDealArchived}
+    />
+  );
+}
+
 /** Workspace UI when Convex reads + URL are configured — requires Convex Auth session. */
 function ConvexAuthenticatedWorkspace() {
   const { isLoading, isAuthenticated } = useConvexAuth();
@@ -1280,8 +1371,8 @@ function ConvexAuthenticatedWorkspace() {
   return <AppContentConvex />;
 }
 
-/** Main signed-in workspace entry (`App` route `path="/*"`). Delegates to mock or Convex; inner pages live in `WorkspaceRoutes`. */
-function WorkspaceEntry() {
+/** Authenticated app shell at `/*` — mock workspace or Convex (with auth gate inside Convex branch). */
+function AuthenticatedApp() {
   /** Explicit mock branch — never mount Convex auth/workspace subscription gate for demo data. */
   if (getDealDataSourceMode() === 'mock') {
     return <AppContentMock />;
@@ -1295,34 +1386,38 @@ function WorkspaceEntry() {
   return <ConvexAuthenticatedWorkspace />;
 }
 
-/** `/demo/*` — mock data only; no Convex client (see `ConvexGate` in `main.tsx`). */
-function IsolatedDemoWorkspaceRoot() {
-  /** Must run before child render — `useLayoutEffect`/`useEffect` run too late for `isIsolatedDemoWorkspace()`. */
-  const isolatedBegunRef = useRef(false);
-  if (!isolatedBegunRef.current) {
-    isolatedBegunRef.current = true;
-    beginIsolatedDemoWorkspace();
-  }
-  useEffect(() => {
-    return () => {
-      isolatedBegunRef.current = false;
-      endIsolatedDemoWorkspace();
-    };
-  }, []);
-  return <AppContentMock basename="/demo" />;
-}
-
 export default function App() {
   const mockMode = getDealDataSourceMode() === 'mock';
+  const location = useLocation();
+
+  useEffect(() => {
+    console.log('App route:', window.location.pathname);
+  }, [location.pathname]);
 
   return (
     <Routes>
-      <Route path="/demo/*" element={<IsolatedDemoWorkspaceRoot />} />
+      <Route path="/demo/*" element={<DemoAppRoot />}>
+        <Route element={<DemoWorkspaceShell />}>
+          <Route index element={<DemoWorkspaceIndex />} />
+          <Route path="transactions" element={<DemoTransactions />} />
+          <Route path="templates" element={<DemoTemplates />} />
+          <Route path="templates/new" element={<TemplateBuilder />} />
+          <Route path="templates/:templateId/edit" element={<TemplateBuilder />} />
+          <Route path="shared/templates/:templateId" element={<DemoSharedTemplate />} />
+          <Route path="agents" element={<DemoAgents />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="workspace/roster" element={<WorkspaceRosterPage />} />
+          <Route path="deal-health" element={<DealHealthDemo />} />
+          <Route path="deals/new" element={<DemoCreateDeal />} />
+          <Route path="deals/:dealId" element={<DemoDealDetail />} />
+          <Route path="*" element={<DemoRouteNotFound />} />
+        </Route>
+      </Route>
       <Route
         path="/login"
         element={
           mockMode ? (
-            <Navigate to="/" replace />
+            <AuthDisabledInMockModePage />
           ) : (
             <AuthLayout>
               <LoginPage />
@@ -1334,7 +1429,7 @@ export default function App() {
         path="/signup"
         element={
           mockMode ? (
-            <Navigate to="/" replace />
+            <AuthDisabledInMockModePage />
           ) : (
             <AuthLayout>
               <SignUpPage />
@@ -1346,7 +1441,7 @@ export default function App() {
         path="/forgot-password"
         element={
           mockMode ? (
-            <Navigate to="/" replace />
+            <AuthDisabledInMockModePage />
           ) : (
             <AuthLayout>
               <ForgotPasswordPage />
@@ -1354,7 +1449,7 @@ export default function App() {
           )
         }
       />
-      <Route path="/*" element={<WorkspaceEntry />} />
+      <Route path="/*" element={<AuthenticatedApp />} />
     </Routes>
   );
 }

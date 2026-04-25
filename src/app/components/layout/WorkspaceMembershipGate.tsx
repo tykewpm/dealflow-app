@@ -48,15 +48,22 @@ export function WorkspaceMembershipGate({
   const title =
     blockKind === 'no_workspace'
       ? 'Workspace not provisioned'
-      : blockKind === 'unknown'
-        ? 'Could not finish sign-in'
-        : 'Workspace access required';
+      : blockKind === 'no_email'
+        ? 'Email required for workspace'
+        : blockKind === 'unknown'
+          ? 'Could not finish sign-in'
+          : 'Workspace access required';
 
   const body =
     blockKind === 'no_workspace' ? (
       <p className="mt-3 text-center text-sm leading-relaxed text-text-secondary">
         The backend has no default workspace yet (common right after a fresh Convex deploy or DB reset).
         From the project root, run:
+      </p>
+    ) : blockKind === 'no_email' ? (
+      <p className="mt-3 text-center text-sm leading-relaxed text-text-secondary">
+        Your account is signed in, but we do not have an email address to create your workspace. Use a
+        sign-in method that provides an email, or update your profile with Convex Auth, then try again.
       </p>
     ) : blockKind === 'unknown' ? (
       <p className="mt-3 text-center text-sm leading-relaxed text-text-secondary">
@@ -115,6 +122,10 @@ export function WorkspaceMembershipGate({
         ) : blockKind === 'no_workspace' ? (
           <p className="mt-6 text-center text-xs text-text-muted">
             Then reload this page or tap <strong>Check again</strong>.
+          </p>
+        ) : blockKind === 'no_email' ? (
+          <p className="mt-6 text-center text-xs text-text-muted">
+            After your profile includes an email, tap <strong>Check again</strong> or reload this page.
           </p>
         ) : null}
       </div>

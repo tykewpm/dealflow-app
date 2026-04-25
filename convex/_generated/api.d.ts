@@ -15,6 +15,7 @@ import type * as dealDerivedHealth from "../dealDerivedHealth.js";
 import type * as dealMessages from "../dealMessages.js";
 import type * as dealUpdates from "../dealUpdates.js";
 import type * as devAuthReset from "../devAuthReset.js";
+import type * as devRoster from "../devRoster.js";
 import type * as documentUpdates from "../documentUpdates.js";
 import type * as http from "../http.js";
 import type * as membership from "../membership.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   dealMessages: typeof dealMessages;
   dealUpdates: typeof dealUpdates;
   devAuthReset: typeof devAuthReset;
+  devRoster: typeof devRoster;
   documentUpdates: typeof documentUpdates;
   http: typeof http;
   membership: typeof membership;

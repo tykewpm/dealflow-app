@@ -3,12 +3,11 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 type OnboardingPhase = 'idle' | 'claiming' | 'ineligible' | 'settled';
 
-export type MembershipBlockKind = 'roster' | 'no_workspace' | 'unknown';
+export type MembershipBlockKind = 'roster' | 'no_workspace' | 'no_email' | 'unknown';
 
 /**
- * After login, automatically runs `claimWorkspaceMembership` once when the user has no membership
- * but the workspace snapshot is blocked for that reason. Surfaces UI phases for loading overlay
- * vs full “no roster match” gate.
+ * After login, automatically runs `claimWorkspaceMembership` once when the user has no membership.
+ * The mutation joins an existing roster by email or provisions a personal workspace — idempotent.
  */
 export function useWorkspaceMembershipOnboarding(enabled: boolean): {
   showClaimingOverlay: boolean;
@@ -58,14 +57,20 @@ export function useWorkspaceMembershipOnboarding(enabled: boolean): {
 
     void claim({})
       .then((r) => {
-        if (r.outcome === 'no_roster_match') {
-          setMembershipBlockKind('roster');
-          setPhase('ineligible');
-        } else if (r.outcome === 'no_workspace') {
-          setMembershipBlockKind('no_workspace');
-          setPhase('ineligible');
-        } else {
-          setPhase('settled');
+        switch (r.outcome) {
+          case 'already_member':
+          case 'joined':
+          case 'provisioned':
+            setPhase('settled');
+            break;
+          case 'no_email':
+            setMembershipBlockKind('no_email');
+            setPhase('ineligible');
+            break;
+          default: {
+            setMembershipBlockKind('unknown');
+            setPhase('ineligible');
+          }
         }
       })
       .catch(() => {
