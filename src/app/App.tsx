@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Routes,
   Route,
@@ -21,11 +21,12 @@ import {
   Deal,
   DealPipelineStage,
   DocumentItem,
-  DocumentStatus,
   Message,
   SignatureStatus,
   Task,
   User,
+  type AddDealDocumentPayload,
+  type AddWorkspacePersonInput,
 } from './types';
 import { mockDeals, mockTasks, mockMessages, mockDocuments, mockUsers } from './data/mockData';
 import {
@@ -61,8 +62,9 @@ import {
   recordUserTemplateApplyUsage,
 } from './data/userTemplatesStorage';
 import { appendDocumentsFromTemplate, appendTasksFromTemplate } from './utils/applyTemplateToDeal';
+import { computeDealPhase, dealHasTaskPhaseCoverage } from './utils/dealPhaseFromTasks';
 import { determineTaskStatus } from './utils/dealUtils';
-import { getMarkDocumentCompletePatch } from './utils/documentHelpers';
+import { displayLabelFromUrl, getMarkDocumentCompletePatch } from './utils/documentHelpers';
 import {
   DemoAppRoot,
   DemoRouteNotFound,
@@ -76,8 +78,34 @@ function AppContentMock() {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [documents, setDocuments] = useState<DocumentItem[]>(mockDocuments);
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const { currentUserId, setCurrentUserId } = useWorkspaceCurrentUser(users);
+
+  const handleAddWorkspacePerson = useCallback(async (input: AddWorkspacePersonInput) => {
+    const emailLower = input.email.trim().toLowerCase();
+    let duplicate = false;
+    setUsers((prev) => {
+      if (prev.some((u) => u.email.trim().toLowerCase() === emailLower)) {
+        duplicate = true;
+        return prev;
+      }
+      const id = `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      return [
+        ...prev,
+        {
+          id,
+          name: input.name.trim(),
+          email: input.email.trim(),
+          partyLabel: input.partyLabel,
+          permissionRole: input.permissionRole,
+        },
+      ];
+    });
+    if (duplicate) {
+      window.alert('That email is already on the workspace roster.');
+      throw new Error('duplicate email');
+    }
+  }, []);
 
   const handleWorkloadTaskAssignee = (taskId: string, assigneeId: string | null) => {
     setTasks((prev) =>
@@ -100,10 +128,21 @@ function AppContentMock() {
     const deal = deals.find((d) => d.id === dealId);
     if (!deal) return;
 
-    setTasks((prev) => [
-      ...prev,
-      ...appendTasksFromTemplate(template, deal, prev, options.includeTasks, currentUserId),
-    ]);
+    const appended = appendTasksFromTemplate(
+      template,
+      deal,
+      tasks,
+      options.includeTasks,
+      currentUserId,
+    );
+    const nextTasks = [...tasks, ...appended];
+    setTasks(nextTasks);
+    const forDeal = nextTasks.filter((t) => t.dealId === dealId);
+    if (dealHasTaskPhaseCoverage(forDeal)) {
+      setDeals((prev) =>
+        prev.map((d) => (d.id === dealId ? { ...d, pipelineStage: computeDealPhase(forDeal) } : d)),
+      );
+    }
     setDocuments((prev) => [
       ...prev,
       ...appendDocumentsFromTemplate(template, dealId, prev, options.includeDocuments),
@@ -141,6 +180,7 @@ function AppContentMock() {
       onSignOut={undefined}
       onWorkloadTaskAssigneeChange={handleWorkloadTaskAssignee}
       onSetDealArchived={handleSetDealArchived}
+      onAddWorkspacePerson={handleAddWorkspacePerson}
     />
   );
 }
@@ -169,6 +209,27 @@ function AppContentConvex() {
   const applyTemplateToDealMut = useMutation(api.templateApply.applyTemplateToDeal);
   const updateTaskAssigneeMut = useMutation(api.taskUpdates.updateTaskAssignee);
   const setDealArchivedMut = useMutation(api.dealUpdates.setDealArchived);
+  const addPersonToRosterMut = useMutation(api.workspaceRosterAdmin.addPersonToRoster);
+
+  const handleAddWorkspacePerson = useCallback(
+    async (input: AddWorkspacePersonInput) => {
+      try {
+        await addPersonToRosterMut({
+          name: input.name,
+          email: input.email,
+          partyLabel: input.partyLabel,
+          permissionRole: input.permissionRole,
+        });
+      } catch (e) {
+        console.error(e);
+        const msg =
+          e instanceof Error ? e.message : 'Could not add person to the workspace roster. Try again.';
+        window.alert(msg);
+        throw e;
+      }
+    },
+    [addPersonToRosterMut],
+  );
 
   const handleSetDealArchived = (dealId: string, archived: boolean) => {
     void (async () => {
@@ -242,11 +303,13 @@ function AppContentConvex() {
           ...(canRecordConvexTemplateUsage
             ? { customTemplateId: template.id as Id<'customTransactionTemplates'> }
             : {}),
-          tasks: newTasks.map(({ name, dueDate, status, assigneeId }) => ({
+          tasks: newTasks.map(({ name, dueDate, status, assigneeId, phase, isGate }) => ({
             name,
             dueDate,
             status,
             ...(assigneeId !== undefined ? { assigneeId } : {}),
+            ...(phase !== undefined ? { phase } : {}),
+            ...(isGate === true ? { isGate: true } : {}),
           })),
           documents: newDocs.map((d) => ({
             name: d.name,
@@ -367,6 +430,7 @@ function AppContentConvex() {
       onSignOut={handleSignOut}
       onWorkloadTaskAssigneeChange={handleWorkloadTaskAssignee}
       onSetDealArchived={handleSetDealArchived}
+      onAddWorkspacePerson={handleAddWorkspacePerson}
     />
   );
 }
@@ -403,6 +467,7 @@ function WorkspaceRoutes({
   onSignOut,
   onWorkloadTaskAssigneeChange,
   onSetDealArchived,
+  onAddWorkspacePerson,
 }: {
   workspaceLoading?: boolean;
   workspaceReadOnly: boolean;
@@ -432,7 +497,10 @@ function WorkspaceRoutes({
   onSignOut?: () => void | Promise<void>;
   onWorkloadTaskAssigneeChange: (taskId: string, assigneeId: string | null) => void;
   onSetDealArchived: (dealId: string, archived: boolean) => void;
+  onAddWorkspacePerson?: (input: AddWorkspacePersonInput) => void | Promise<void>;
 }) {
+  const go = useWorkspaceGo();
+
   return (
     <WorkspaceLinkBaseProvider value="">
       <AppShell
@@ -447,6 +515,7 @@ function WorkspaceRoutes({
           onSignOut,
         }}
       >
+        <>
         <Routes>
         <Route
           path="/"
@@ -459,6 +528,7 @@ function WorkspaceRoutes({
               documents={documents}
               createDealDisabled={false}
               onSetDealArchived={onSetDealArchived}
+              onStartNewClosing={() => go('/deals/new')}
             />
           }
         />
@@ -472,6 +542,7 @@ function WorkspaceRoutes({
               messages={messages}
               documents={documents}
               createDealDisabled={false}
+              onStartNewClosing={() => go('/deals/new')}
             />
           }
         />
@@ -558,6 +629,7 @@ function WorkspaceRoutes({
               users={users}
               currentUserId={currentUserId}
               onSetDealArchived={onSetDealArchived}
+              onAddWorkspacePerson={onAddWorkspacePerson}
             />
           }
         />
@@ -570,6 +642,7 @@ function WorkspaceRoutes({
           }
         />
         </Routes>
+        </>
       </AppShell>
     </WorkspaceLinkBaseProvider>
   );
@@ -583,6 +656,7 @@ function DashboardPage({
   documents,
   createDealDisabled,
   onSetDealArchived,
+  onStartNewClosing,
 }: {
   workspaceLoading?: boolean;
   deals: Deal[];
@@ -591,6 +665,7 @@ function DashboardPage({
   documents: DocumentItem[];
   createDealDisabled: boolean;
   onSetDealArchived: (dealId: string, archived: boolean) => void;
+  onStartNewClosing: () => void;
 }) {
   const go = useWorkspaceGo();
 
@@ -602,7 +677,8 @@ function DashboardPage({
       messages={messages}
       documents={documents}
       onSelectDeal={(dealId) => go(`/deals/${dealId}`)}
-      onCreateDeal={() => go('/deals/new')}
+      onStartNewClosing={onStartNewClosing}
+      onImportFromMls={() => go('/deals/new')}
       createDealDisabled={createDealDisabled}
       onSetDealArchived={onSetDealArchived}
     />
@@ -616,6 +692,7 @@ function TransactionsPageRoute({
   messages,
   documents,
   createDealDisabled,
+  onStartNewClosing,
 }: {
   workspaceLoading?: boolean;
   deals: Deal[];
@@ -623,9 +700,8 @@ function TransactionsPageRoute({
   messages: Message[];
   documents: DocumentItem[];
   createDealDisabled: boolean;
+  onStartNewClosing: () => void;
 }) {
-  const go = useWorkspaceGo();
-
   return (
     <TransactionsPage
       workspaceLoading={workspaceLoading}
@@ -633,7 +709,7 @@ function TransactionsPageRoute({
       tasks={tasks}
       messages={messages}
       documents={documents}
-      onCreateDeal={() => go('/deals/new')}
+      onStartNewClosing={onStartNewClosing}
       createDealDisabled={createDealDisabled}
     />
   );
@@ -817,6 +893,7 @@ type DealDetailPageProps = {
   users: User[];
   currentUserId: string;
   onSetDealArchived: (dealId: string, archived: boolean) => void;
+  onAddWorkspacePerson?: (input: AddWorkspacePersonInput) => void | Promise<void>;
 };
 
 function DealDetailPage(props: DealDetailPageProps) {
@@ -841,6 +918,7 @@ function DealDetailPageMock({
   users,
   currentUserId,
   onSetDealArchived,
+  onAddWorkspacePerson,
 }: DealDetailPageProps) {
   const go = useWorkspaceGo();
   const { dealId } = useParams<{ dealId: string }>();
@@ -851,17 +929,22 @@ function DealDetailPageMock({
   const dealDocuments = documents.filter((d) => d.dealId === dealId);
 
   const handleToggleTask = (taskId: string) => {
-    setTasks(
-      tasks.map((task) => {
-        if (task.id === taskId) {
-          return {
-            ...task,
-            status: task.status === 'complete' ? 'active' : 'complete',
-          };
-        }
-        return task;
-      }),
-    );
+    if (!dealId) return;
+    const nextTasks = tasks.map((task) => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          status: task.status === 'complete' ? 'active' : 'complete',
+        };
+      }
+      return task;
+    });
+    setTasks(nextTasks);
+    const forDeal = nextTasks.filter((t) => t.dealId === dealId);
+    if (dealHasTaskPhaseCoverage(forDeal)) {
+      const nextStage = computeDealPhase(forDeal);
+      setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, pipelineStage: nextStage } : d)));
+    }
   };
 
   const handleChangeTaskAssignee = (taskId: string, assigneeId: string | null) => {
@@ -888,23 +971,35 @@ function DealDetailPageMock({
     setMessages([...messages, newMessage]);
   };
 
-  const handleAddDocument = (documentData: {
-    name: string;
-    status: DocumentStatus;
-    signatureRequired: boolean;
-    dueDate?: string;
-    referenceLink?: string;
-  }) => {
+  const handleAddDocument = async (payload: AddDealDocumentPayload) => {
+    const id = `doc${Date.now()}`;
+    if (payload.kind === 'link') {
+      const url = payload.url.trim();
+      const name = payload.name?.trim() || displayLabelFromUrl(url);
+      const newDocument: DocumentItem = {
+        id,
+        dealId: dealId!,
+        name,
+        status: 'completed',
+        signatureStatus: 'not-required',
+        referenceLink: url,
+        attachmentKind: 'link',
+      };
+      setDocuments((prev) => [...prev, newDocument]);
+      return;
+    }
+    const name = payload.name?.trim() || payload.file.name;
+    const fileUrl = URL.createObjectURL(payload.file);
     const newDocument: DocumentItem = {
-      id: `doc${documents.length + 1}`,
+      id,
       dealId: dealId!,
-      name: documentData.name,
-      status: documentData.status,
-      signatureStatus: documentData.signatureRequired ? 'requested' : 'not-required',
-      dueDate: documentData.dueDate,
-      referenceLink: documentData.referenceLink,
+      name,
+      status: 'completed',
+      signatureStatus: 'not-required',
+      attachmentKind: 'file',
+      fileUrl,
     };
-    setDocuments([...documents, newDocument]);
+    setDocuments((prev) => [...prev, newDocument]);
   };
 
   const handlePipelineStageChange = (stage: DealPipelineStage) => {
@@ -985,6 +1080,7 @@ function DealDetailPageMock({
       onArchiveDeal={
         deal.archived ? undefined : () => onSetDealArchived(deal.id, true)
       }
+      onAddWorkspacePerson={onAddWorkspacePerson}
     />
   );
 }
@@ -1000,6 +1096,7 @@ function DealDetailPageConvex({
   currentUserId,
   setMessages: _setMessagesUnused,
   onSetDealArchived,
+  onAddWorkspacePerson,
 }: DealDetailPageProps) {
   const navigate = useNavigate();
   const { dealId } = useParams<{ dealId: string }>();
@@ -1011,6 +1108,7 @@ function DealDetailPageConvex({
   const updateTaskAssigneeMut = useMutation(api.taskUpdates.updateTaskAssignee);
   const updateDealDocumentMut = useMutation(api.documentUpdates.updateDealDocument);
   const createDealDocumentMut = useMutation(api.documentUpdates.createDealDocument);
+  const generateDealDocumentUploadUrlMut = useMutation(api.documentUpdates.generateDealDocumentUploadUrl);
   const createDealMessageMut = useMutation(api.dealMessages.createDealMessage);
 
   const deal =
@@ -1085,31 +1183,40 @@ function DealDetailPageConvex({
     })();
   };
 
-  const handleAddDocument = (documentData: {
-    name: string;
-    status: DocumentStatus;
-    signatureRequired: boolean;
-    dueDate?: string;
-    referenceLink?: string;
-  }) => {
+  const handleAddDocument = async (payload: AddDealDocumentPayload) => {
     if (!dealId) return;
-    void (async () => {
-      try {
-        await createDealDocumentMut({
-          dealId: dealId as Id<'deals'>,
-          name: documentData.name,
-          status: documentData.status,
-          signatureStatus: documentData.signatureRequired ? 'requested' : 'not-required',
-          ...(documentData.dueDate ? { dueDate: documentData.dueDate } : {}),
-          ...(documentData.referenceLink?.trim()
-            ? { referenceLink: documentData.referenceLink.trim() }
-            : {}),
-        });
-      } catch (e) {
-        console.error(e);
-        window.alert('Could not add document. Try again.');
-      }
-    })();
+    if (payload.kind === 'link') {
+      const url = payload.url.trim();
+      const name = payload.name?.trim() || displayLabelFromUrl(url);
+      await createDealDocumentMut({
+        dealId: dealId as Id<'deals'>,
+        name,
+        status: 'completed',
+        signatureStatus: 'not-required',
+        referenceLink: url,
+        attachmentKind: 'link',
+      });
+      return;
+    }
+    const postUrl = await generateDealDocumentUploadUrlMut({});
+    const res = await fetch(postUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': payload.file.type || 'application/octet-stream' },
+      body: payload.file,
+    });
+    if (!res.ok) {
+      throw new Error('Upload failed');
+    }
+    const storageId = (await res.text()).trim();
+    const name = payload.name?.trim() || payload.file.name;
+    await createDealDocumentMut({
+      dealId: dealId as Id<'deals'>,
+      name,
+      status: 'completed',
+      signatureStatus: 'not-required',
+      attachmentKind: 'file',
+      fileStorageId: storageId as Id<'_storage'>,
+    });
   };
 
   const handleUpdateDocumentReferenceLink = (documentId: string, referenceLink: string) => {
@@ -1233,6 +1340,7 @@ function DealDetailPageConvex({
       onArchiveDeal={
         deal.archived ? undefined : () => onSetDealArchived(deal.id, true)
       }
+      onAddWorkspacePerson={onAddWorkspacePerson}
     />
   );
 }
@@ -1250,6 +1358,7 @@ function DemoWorkspaceIndex() {
       documents={ctx.documents}
       createDealDisabled={false}
       onSetDealArchived={ctx.onSetDealArchived}
+      onStartNewClosing={ctx.onStartNewClosing}
     />
   );
 }
@@ -1264,6 +1373,7 @@ function DemoTransactions() {
       messages={ctx.messages}
       documents={ctx.documents}
       createDealDisabled={false}
+      onStartNewClosing={ctx.onStartNewClosing}
     />
   );
 }
@@ -1338,6 +1448,7 @@ function DemoDealDetail() {
       users={ctx.users}
       currentUserId={ctx.currentUserId}
       onSetDealArchived={ctx.onSetDealArchived}
+      onAddWorkspacePerson={ctx.onAddWorkspacePerson}
     />
   );
 }

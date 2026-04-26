@@ -1,5 +1,6 @@
 import { mutation } from './_generated/server';
 import { v } from 'convex/values';
+import { syncDealPipelineStageFromTasksIfNeeded } from './dealPhaseSync';
 import { requireWorkspaceMember } from './workspaceAccess';
 
 const dealStatus = v.union(
@@ -60,6 +61,16 @@ export const createDealWithWorkspace = mutation({
         dueDate: v.string(),
         status: taskStatus,
         assigneeId: v.optional(v.string()),
+        phase: v.optional(
+          v.union(
+            v.literal('under-contract'),
+            v.literal('inspection'),
+            v.literal('financing'),
+            v.literal('escrow'),
+            v.literal('closing'),
+          ),
+        ),
+        isGate: v.optional(v.boolean()),
       }),
     ),
     documents: v.array(
@@ -95,6 +106,8 @@ export const createDealWithWorkspace = mutation({
         dueDate: t.dueDate,
         status: t.status,
         ...(t.assigneeId !== undefined ? { assigneeId: t.assigneeId } : {}),
+        ...(t.phase !== undefined ? { phase: t.phase } : {}),
+        ...(t.isGate !== undefined ? { isGate: t.isGate } : {}),
       });
     }
 
@@ -109,6 +122,8 @@ export const createDealWithWorkspace = mutation({
         ...(d.notes !== undefined ? { notes: d.notes } : {}),
       });
     }
+
+    await syncDealPipelineStageFromTasksIfNeeded(ctx, dealId);
 
     return { dealId };
   },

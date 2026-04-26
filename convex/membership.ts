@@ -1,6 +1,7 @@
 import { getAuthUserId } from '@convex-dev/auth/server';
 import type { Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
+import { seedStarterClosingIfEmpty } from './starterClosing';
 import { getWorkspaceMembership } from './workspaceAccess';
 
 function rosterUserIdForAuthUser(authUserId: Id<'users'>): string {
@@ -123,6 +124,8 @@ export const claimWorkspaceMembership = mutation({
       userId: rosterUserId,
       name: displayName,
       email: emailRaw,
+      partyLabel: 'agent',
+      permissionRole: 'owner',
     });
 
     const dupBeforeMembership = await ctx.db
@@ -138,6 +141,8 @@ export const claimWorkspaceMembership = mutation({
       userId,
       rosterUserId,
     });
+
+    await seedStarterClosingIfEmpty(ctx, newWorkspaceId, rosterUserId);
 
     return { outcome: 'provisioned' as const, rosterUserId, workspaceId: newWorkspaceId };
   },

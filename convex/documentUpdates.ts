@@ -29,6 +29,8 @@ export const createDealDocument = mutation({
     dueDate: v.optional(v.string()),
     referenceLink: v.optional(v.string()),
     notes: v.optional(v.string()),
+    attachmentKind: v.optional(v.union(v.literal('link'), v.literal('file'))),
+    fileStorageId: v.optional(v.id('_storage')),
   },
   handler: async (ctx, args) => {
     const { workspaceId } = await requireWorkspaceMember(ctx);
@@ -41,9 +43,20 @@ export const createDealDocument = mutation({
       ...(args.dueDate !== undefined ? { dueDate: args.dueDate } : {}),
       ...(args.referenceLink !== undefined ? { referenceLink: args.referenceLink } : {}),
       ...(args.notes !== undefined ? { notes: args.notes } : {}),
+      ...(args.attachmentKind !== undefined ? { attachmentKind: args.attachmentKind } : {}),
+      ...(args.fileStorageId !== undefined ? { fileStorageId: args.fileStorageId } : {}),
     });
     await elevateDealStatusIfDerivedAtRisk(ctx, args.dealId);
     return null;
+  },
+});
+
+/** Convex file storage upload — client POSTs the file body to the returned URL, then passes storage id to `createDealDocument`. */
+export const generateDealDocumentUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireWorkspaceMember(ctx);
+    return await ctx.storage.generateUploadUrl();
   },
 });
 

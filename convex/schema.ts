@@ -25,6 +25,15 @@ const taskStatus = v.union(
   v.literal('complete'),
 );
 
+/** Task checklist section — drives auto `deal.pipelineStage` when set on tasks. */
+const taskClosingPhase = v.union(
+  v.literal('under-contract'),
+  v.literal('inspection'),
+  v.literal('financing'),
+  v.literal('escrow'),
+  v.literal('closing'),
+);
+
 const documentStatus = v.union(
   v.literal('not-started'),
   v.literal('requested'),
@@ -39,6 +48,23 @@ const signatureStatus = v.union(
   v.literal('requested'),
   v.literal('partially-signed'),
   v.literal('fully-signed'),
+);
+
+/** Display-only grouping for roster / People (closing parties). */
+const workspacePartyLabel = v.union(
+  v.literal('buyer'),
+  v.literal('seller'),
+  v.literal('agent'),
+  v.literal('lender'),
+  v.literal('escrow'),
+  v.literal('other'),
+);
+
+/** Workspace-wide permission tier (V1 — no per-deal ACL). */
+const workspacePermissionRole = v.union(
+  v.literal('owner'),
+  v.literal('collaborator'),
+  v.literal('viewer'),
 );
 
 /** Transaction Template Builder — custom templates only (built-ins stay in client `templateData.ts`). */
@@ -112,6 +138,8 @@ export default defineSchema({
     dueDate: v.string(),
     status: taskStatus,
     assigneeId: v.optional(v.string()),
+    phase: v.optional(taskClosingPhase),
+    isGate: v.optional(v.boolean()),
   }).index('by_dealId', ['dealId']),
 
   dealDocuments: defineTable({
@@ -122,6 +150,9 @@ export default defineSchema({
     dueDate: v.optional(v.string()),
     referenceLink: v.optional(v.string()),
     notes: v.optional(v.string()),
+    /** V1 optional: link/file attachment vs legacy checklist row only. */
+    attachmentKind: v.optional(v.union(v.literal('link'), v.literal('file'))),
+    fileStorageId: v.optional(v.id('_storage')),
   }).index('by_dealId', ['dealId']),
 
   dealMessages: defineTable({
@@ -137,6 +168,8 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     email: v.string(),
+    partyLabel: v.optional(workspacePartyLabel),
+    permissionRole: v.optional(workspacePermissionRole),
   })
     .index('by_userId', ['userId'])
     .index('by_workspaceId', ['workspaceId'])

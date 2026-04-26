@@ -37,7 +37,7 @@ export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
   {
     id: 'transactions',
     label: 'Transactions',
-    shortLabel: 'Deals',
+    shortLabel: 'Closings',
     icon: Briefcase,
     path: '/transactions',
     mobilePrimary: true,

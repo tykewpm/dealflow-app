@@ -1,5 +1,6 @@
 import { DocumentItem, Task } from '../types';
 import { isDocumentOverdue } from './documentHelpers';
+import { isAttachmentDocument } from './documentOpenUrl';
 
 export type DocumentPriority = 'blocking' | 'needs-attention' | 'normal';
 export type NextActionType = 'document' | 'task';
@@ -25,6 +26,10 @@ export interface NextAction {
  * Determine if a document is blocking progress
  */
 export function isDocumentBlocking(document: DocumentItem, closingDate: string): boolean {
+  if (isAttachmentDocument(document)) {
+    return isDocumentOverdue(document);
+  }
+
   const now = new Date();
   const closing = new Date(closingDate);
   const daysUntilClosing = Math.ceil((closing.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));

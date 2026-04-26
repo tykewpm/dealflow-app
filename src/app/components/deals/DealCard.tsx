@@ -1,11 +1,15 @@
-import { Deal, Task } from '../../types';
+import { Deal, DocumentItem, Message, Task } from '../../types';
 import { DealStatusBadge } from '../shared/DealStatusBadge';
-import { ProgressBar } from '../shared/ProgressBar';
-import { calculateProgress, countAtRiskItems, formatDate } from '../../utils/dealUtils';
+import { formatDate } from '../../utils/dealUtils';
+import { computeDealNextAction } from '../../utils/dealNextActionEngine';
+import { pipelineStageDisplayLabel } from '../../utils/pipelineStageLabels';
 
 interface DealCardProps {
   deal: Deal;
   tasks: Task[];
+  /** For next-best-step; defaults to empty when omitted. */
+  documents?: DocumentItem[];
+  messages?: Message[];
   onClick: () => void;
   /** Archive vs restore — footer action; omit to hide lifecycle controls. */
   archiveVariant?: 'archive' | 'restore';
@@ -15,56 +19,56 @@ interface DealCardProps {
 export function DealCard({
   deal,
   tasks,
+  documents = [],
+  messages = [],
   onClick,
   archiveVariant = 'archive',
   onArchiveAction,
 }: DealCardProps) {
-  const progress = calculateProgress(tasks);
-  const atRiskCount = countAtRiskItems(tasks);
+  const dealDocs = documents.filter((d) => d.dealId === deal.id);
+  const next = computeDealNextAction(deal, tasks, dealDocs, messages);
+  const phaseLabel = pipelineStageDisplayLabel(deal.pipelineStage);
 
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className="cursor-pointer rounded-lg border border-border-subtle bg-bg-surface p-4 shadow-sm transition-[background-color,border-color,box-shadow] duration-150 ease-out hover:border-border-strong hover:bg-bg-elevated/30 dark:shadow-none sm:p-5"
     >
-      <div className="mb-3 flex items-start justify-between">
-        <div className="flex-1">
-          <h3 className="mb-1 font-semibold text-text-primary">
-            {deal.propertyAddress}
-          </h3>
-          <p className="text-sm text-text-secondary">
-            Buyer: {deal.buyerName}
-          </p>
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold leading-snug text-text-primary">{deal.propertyAddress}</h3>
         </div>
         <DealStatusBadge status={deal.status} />
       </div>
 
-      <div className="mb-4 space-y-3">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-text-muted">Closing Date</span>
-          <span className="font-medium text-text-primary">
-            {formatDate(deal.closingDate)}
-          </span>
+      <dl className="space-y-2 text-sm">
+        <div className="flex items-baseline justify-between gap-2">
+          <dt className="shrink-0 text-text-muted">Closing</dt>
+          <dd className="truncate font-medium text-text-primary">{formatDate(deal.closingDate)}</dd>
         </div>
-
-        {atRiskCount > 0 && (
-          <div className="flex items-center gap-2 rounded border border-border-subtle bg-accent-amber-soft px-3 py-2">
-            <svg className="h-4 w-4 text-accent-amber" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <span className="text-sm font-medium text-text-primary">
-              {atRiskCount} {atRiskCount === 1 ? 'item' : 'items'} at risk
-            </span>
-          </div>
-        )}
-      </div>
-
-      <ProgressBar progress={progress} />
+        <div className="flex items-baseline justify-between gap-2">
+          <dt className="shrink-0 text-text-muted">Phase</dt>
+          <dd className="truncate text-right font-medium text-text-primary">{phaseLabel}</dd>
+        </div>
+        <div className="border-t border-border-subtle pt-2">
+          <dt className="mb-0.5 text-[11px] font-medium uppercase tracking-wide text-text-muted">Next step</dt>
+          <dd className="line-clamp-2 text-sm leading-snug text-text-secondary">{next.title}</dd>
+        </div>
+      </dl>
 
       {onArchiveAction ? (
         <div
           className="mt-4 flex justify-end border-t border-border-subtle pt-3"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           <button
             type="button"

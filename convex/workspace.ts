@@ -1,5 +1,5 @@
 import { getAuthUserId } from '@convex-dev/auth/server';
-import { query } from './_generated/server';
+import { query, type QueryCtx } from './_generated/server';
 import type { Doc } from './_generated/dataModel';
 import { getWorkspaceMembership } from './workspaceAccess';
 
@@ -7,11 +7,15 @@ function mapWorkspacePerson(doc: Doc<'workspacePeople'>): {
   id: string;
   name: string;
   email: string;
+  partyLabel?: 'buyer' | 'seller' | 'agent' | 'lender' | 'escrow' | 'other';
+  permissionRole?: 'owner' | 'collaborator' | 'viewer';
 } {
   return {
     id: doc.userId,
     name: doc.name,
     email: doc.email,
+    ...(doc.partyLabel !== undefined ? { partyLabel: doc.partyLabel } : {}),
+    ...(doc.permissionRole !== undefined ? { permissionRole: doc.permissionRole } : {}),
   };
 }
 
@@ -52,6 +56,8 @@ function mapTask(doc: Doc<'tasks'>): {
   dueDate: string;
   status: 'upcoming' | 'active' | 'at-risk' | 'overdue' | 'complete';
   assigneeId?: string;
+  phase?: 'under-contract' | 'inspection' | 'financing' | 'escrow' | 'closing';
+  isGate?: boolean;
 } {
   return {
     id: doc._id,
@@ -60,6 +66,8 @@ function mapTask(doc: Doc<'tasks'>): {
     dueDate: doc.dueDate,
     status: doc.status,
     ...(doc.assigneeId !== undefined ? { assigneeId: doc.assigneeId } : {}),
+    ...(doc.phase !== undefined ? { phase: doc.phase } : {}),
+    ...(doc.isGate === true ? { isGate: true } : {}),
   };
 }
 
@@ -79,22 +87,7 @@ function mapDealMessage(doc: Doc<'dealMessages'>): {
   };
 }
 
-function mapDealDocument(doc: Doc<'dealDocuments'>): {
-  id: string;
-  dealId: string;
-  name: string;
-  status:
-    | 'not-started'
-    | 'requested'
-    | 'uploaded'
-    | 'awaiting-signature'
-    | 'signed'
-    | 'completed';
-  signatureStatus: 'not-required' | 'requested' | 'partially-signed' | 'fully-signed';
-  dueDate?: string;
-  referenceLink?: string;
-  notes?: string;
-} {
+async function mapDealDocument(ctx: QueryCtx, doc: Doc<'dealDocuments'>) {
   const base = {
     id: doc._id,
     dealId: doc.dealId as string,
@@ -102,11 +95,19 @@ function mapDealDocument(doc: Doc<'dealDocuments'>): {
     status: doc.status,
     signatureStatus: doc.signatureStatus,
   };
+  let fileUrl: string | undefined;
+  if (doc.fileStorageId) {
+    const signed = await ctx.storage.getUrl(doc.fileStorageId);
+    if (signed) fileUrl = signed;
+  }
   return {
     ...base,
     ...(doc.dueDate !== undefined ? { dueDate: doc.dueDate } : {}),
     ...(doc.referenceLink !== undefined ? { referenceLink: doc.referenceLink } : {}),
     ...(doc.notes !== undefined ? { notes: doc.notes } : {}),
+    ...(doc.attachmentKind !== undefined ? { attachmentKind: doc.attachmentKind } : {}),
+    ...(doc.fileStorageId !== undefined ? { fileStorageId: doc.fileStorageId as string } : {}),
+    ...(fileUrl !== undefined ? { fileUrl } : {}),
   };
 }
 
@@ -117,7 +118,7 @@ export const getWorkspaceSnapshot = query({
     const blockedBase = {
       deals: [] as ReturnType<typeof mapDeal>[],
       tasks: [] as ReturnType<typeof mapTask>[],
-      documents: [] as ReturnType<typeof mapDealDocument>[],
+      documents: [] as Awaited<ReturnType<typeof mapDealDocument>>[],
       messages: [] as ReturnType<typeof mapDealMessage>[],
       users: [] as ReturnType<typeof mapWorkspacePerson>[],
     };
@@ -170,7 +171,7 @@ export const getWorkspaceSnapshot = query({
       workspaceAccessReason: null,
       deals: dealDocs.map(mapDeal),
       tasks: tasksScoped.map(mapTask),
-      documents: documentsScoped.map(mapDealDocument),
+      documents: await Promise.all(documentsScoped.map((d) => mapDealDocument(ctx, d))),
       messages: messagesScoped.map(mapDealMessage),
       users: peopleDocs.map(mapWorkspacePerson),
     };

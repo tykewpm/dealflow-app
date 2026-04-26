@@ -22,6 +22,8 @@ interface NextActionCardProps {
   onSecondaryAction: () => void;
   /** Compact workbench style: less padding, no deal summary chip row (avoids duplicating strip metrics). */
   variant?: 'default' | 'compact';
+  /** Shown under the “Next action” label in compact variant (e.g. current closing phase). */
+  contextSubtitle?: string;
 }
 
 export function NextActionCard({
@@ -40,6 +42,7 @@ export function NextActionCard({
   onPrimaryAction,
   onSecondaryAction,
   variant = 'default',
+  contextSubtitle,
 }: NextActionCardProps) {
   const isCompact = variant === 'compact';
   const showDealSummaryRow =
@@ -91,13 +94,18 @@ export function NextActionCard({
       >
         <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0 flex-1">
-            <div className="mb-0.5 flex items-center gap-1.5">
-              <svg className={`h-3.5 w-3.5 shrink-0 ${config.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              <span className={`text-[10px] font-semibold uppercase tracking-wide ${config.labelColor}`}>
-                Next action
-              </span>
+            <div className="mb-0.5 flex flex-col gap-0.5">
+              <div className="flex items-center gap-1.5">
+                <svg className={`h-3.5 w-3.5 shrink-0 ${config.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <span className={`text-[10px] font-semibold uppercase tracking-wide ${config.labelColor}`}>
+                  Next action
+                </span>
+              </div>
+              {contextSubtitle ? (
+                <span className="pl-5 text-[10px] font-medium text-text-muted">{contextSubtitle}</span>
+              ) : null}
             </div>
             <h3 className="text-sm font-semibold leading-snug text-text-primary">{actionText}</h3>
             {secondaryText && (

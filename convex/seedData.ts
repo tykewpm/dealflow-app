@@ -5,9 +5,27 @@
 
 /** Mirrors `mockUsers` — stable ids align with SEED_TASKS assigneeId and chat senderId. */
 export const SEED_WORKSPACE_PEOPLE = [
-  { userId: 'u1', name: 'Sarah Martinez', email: 'sarah@closeflow.com' },
-  { userId: 'u2', name: 'John Smith', email: 'john@realty.com' },
-  { userId: 'u3', name: 'Emily Chen', email: 'emily@homes.com' },
+  {
+    userId: 'u1',
+    name: 'Sarah Martinez',
+    email: 'sarah@closeflow.com',
+    partyLabel: 'agent' as const,
+    permissionRole: 'owner' as const,
+  },
+  {
+    userId: 'u2',
+    name: 'John Smith',
+    email: 'john@realty.com',
+    partyLabel: 'buyer' as const,
+    permissionRole: 'collaborator' as const,
+  },
+  {
+    userId: 'u3',
+    name: 'Emily Chen',
+    email: 'emily@homes.com',
+    partyLabel: 'lender' as const,
+    permissionRole: 'viewer' as const,
+  },
 ] as const;
 
 export type MockDealKey = 'd1' | 'd2' | 'd3';
@@ -39,7 +57,7 @@ export const SEED_DEALS_ORDERED: Array<{
       closingDate: '2026-05-15',
       status: 'active',
       createdAt: '2026-04-01',
-      pipelineStage: 'under-contract',
+      pipelineStage: 'due-diligence',
     },
   },
   {
@@ -63,7 +81,7 @@ export const SEED_DEALS_ORDERED: Array<{
       closingDate: '2026-05-30',
       status: 'active',
       createdAt: '2026-04-10',
-      pipelineStage: 'financing',
+      pipelineStage: 'under-contract',
     },
   },
 ];
@@ -74,17 +92,68 @@ export const SEED_TASKS: Array<{
   dueDate: string;
   status: 'upcoming' | 'active' | 'at-risk' | 'overdue' | 'complete';
   assigneeId?: string;
+  phase?: 'under-contract' | 'inspection' | 'financing' | 'escrow' | 'closing';
+  isGate?: boolean;
 }> = [
-  { mockDealId: 'd1', name: 'Initial deposit due', dueDate: '2026-04-20', status: 'complete', assigneeId: 'u1' },
-  { mockDealId: 'd1', name: 'Home inspection scheduled', dueDate: '2026-04-18', status: 'at-risk', assigneeId: 'u2' },
-  { mockDealId: 'd1', name: 'Appraisal ordered', dueDate: '2026-04-22', status: 'active', assigneeId: 'u1' },
-  { mockDealId: 'd1', name: 'Title search completed', dueDate: '2026-04-28', status: 'upcoming' },
-  { mockDealId: 'd1', name: 'Final walkthrough', dueDate: '2026-05-14', status: 'upcoming' },
-  { mockDealId: 'd2', name: 'Contingency removal deadline', dueDate: '2026-04-14', status: 'overdue', assigneeId: 'u3' },
-  { mockDealId: 'd2', name: 'Loan approval pending', dueDate: '2026-04-16', status: 'at-risk', assigneeId: 'u2' },
-  { mockDealId: 'd2', name: 'Insurance binder required', dueDate: '2026-04-23', status: 'active' },
-  { mockDealId: 'd3', name: 'Disclosure review', dueDate: '2026-04-20', status: 'active', assigneeId: 'u1' },
-  { mockDealId: 'd3', name: 'HOA documents requested', dueDate: '2026-04-25', status: 'upcoming' },
+  {
+    mockDealId: 'd1',
+    name: 'Initial deposit due',
+    dueDate: '2026-04-20',
+    status: 'complete',
+    assigneeId: 'u1',
+    phase: 'under-contract',
+    isGate: true,
+  },
+  {
+    mockDealId: 'd1',
+    name: 'Home inspection scheduled',
+    dueDate: '2026-04-18',
+    status: 'at-risk',
+    assigneeId: 'u2',
+    phase: 'inspection',
+  },
+  {
+    mockDealId: 'd1',
+    name: 'Appraisal ordered',
+    dueDate: '2026-04-22',
+    status: 'active',
+    assigneeId: 'u1',
+    phase: 'financing',
+  },
+  { mockDealId: 'd1', name: 'Title search completed', dueDate: '2026-04-28', status: 'upcoming', phase: 'escrow' },
+  { mockDealId: 'd1', name: 'Final walkthrough', dueDate: '2026-05-14', status: 'upcoming', phase: 'closing' },
+  {
+    mockDealId: 'd2',
+    name: 'Contingency removal deadline',
+    dueDate: '2026-04-14',
+    status: 'overdue',
+    assigneeId: 'u3',
+    phase: 'inspection',
+  },
+  {
+    mockDealId: 'd2',
+    name: 'Loan approval pending',
+    dueDate: '2026-04-16',
+    status: 'at-risk',
+    assigneeId: 'u2',
+    phase: 'financing',
+  },
+  {
+    mockDealId: 'd2',
+    name: 'Insurance binder required',
+    dueDate: '2026-04-23',
+    status: 'active',
+    phase: 'financing',
+  },
+  {
+    mockDealId: 'd3',
+    name: 'Disclosure review',
+    dueDate: '2026-04-20',
+    status: 'active',
+    assigneeId: 'u1',
+    phase: 'under-contract',
+  },
+  { mockDealId: 'd3', name: 'HOA documents requested', dueDate: '2026-04-25', status: 'upcoming', phase: 'escrow' },
 ];
 
 export const SEED_DOCUMENTS: Array<{

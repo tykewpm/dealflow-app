@@ -7,6 +7,8 @@ export interface TemplateTask {
   stage: TemplateStage;
   daysFromClosing: number; // Negative for before closing, positive for after
   description?: string;
+  /** When true, phase advances only once this task is complete (with other gates in the same phase). */
+  isGate?: boolean;
 }
 
 export interface TemplateDocument {

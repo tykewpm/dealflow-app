@@ -2,6 +2,21 @@ import { mutation, query } from './_generated/server';
 import { v } from 'convex/values';
 import { getWorkspaceMembership, requireWorkspaceMember } from './workspaceAccess';
 
+const workspacePartyLabel = v.union(
+  v.literal('buyer'),
+  v.literal('seller'),
+  v.literal('agent'),
+  v.literal('lender'),
+  v.literal('escrow'),
+  v.literal('other'),
+);
+
+const workspacePermissionRole = v.union(
+  v.literal('owner'),
+  v.literal('collaborator'),
+  v.literal('viewer'),
+);
+
 function newRosterUserId(): string {
   const c = globalThis.crypto;
   if (c?.randomUUID) {
@@ -27,6 +42,8 @@ export const listRoster = query({
       userId: p.userId,
       name: p.name,
       email: p.email,
+      ...(p.partyLabel !== undefined ? { partyLabel: p.partyLabel } : {}),
+      ...(p.permissionRole !== undefined ? { permissionRole: p.permissionRole } : {}),
     }));
   },
 });
@@ -41,6 +58,8 @@ export const addPersonToRoster = mutation({
     email: v.string(),
     /** Optional stable id (e.g. `u4`). If omitted, a unique id is generated. */
     userId: v.optional(v.string()),
+    partyLabel: v.optional(workspacePartyLabel),
+    permissionRole: v.optional(workspacePermissionRole),
   },
   handler: async (ctx, args) => {
     const { workspaceId } = await requireWorkspaceMember(ctx);
@@ -87,6 +106,8 @@ export const addPersonToRoster = mutation({
       userId,
       name,
       email: emailRaw,
+      ...(args.partyLabel !== undefined ? { partyLabel: args.partyLabel } : {}),
+      ...(args.permissionRole !== undefined ? { permissionRole: args.permissionRole } : {}),
     });
 
     return { userId };

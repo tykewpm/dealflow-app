@@ -17,12 +17,22 @@ interface MlsListingReviewPanelProps {
     sellerName: string;
     closingDate: string;
   }) => void;
+  /** Wizard continues to templates; quick transaction creates a deal from the modal. */
+  flowContext?: 'wizard' | 'quick-transaction';
+  /** Primary submit control label */
+  submitButtonLabel?: string;
 }
 
 const controlClass =
   'h-12 w-full rounded-xl border border-input-border bg-input-bg px-4 text-text-primary focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-accent-blue/25';
 
-export function MlsListingReviewPanel({ listing, onBack, onApply }: MlsListingReviewPanelProps) {
+export function MlsListingReviewPanel({
+  listing,
+  onBack,
+  onApply,
+  flowContext = 'wizard',
+  submitButtonLabel,
+}: MlsListingReviewPanelProps) {
   const seeded = mlsPreviewToDealBasics(listing);
   const [propertyAddress, setPropertyAddress] = useState(seeded.propertyAddress);
   const [buyerName, setBuyerName] = useState(seeded.buyerName);
@@ -54,8 +64,9 @@ export function MlsListingReviewPanel({ listing, onBack, onApply }: MlsListingRe
         <p className="mb-2 text-sm text-text-muted">Review import</p>
         <h1 className="mb-2 text-3xl font-bold text-text-primary">Confirm deal basics</h1>
         <p className="text-text-secondary">
-          We prefilled fields from the listing. Adjust anything before continuing to templates — this is the same
-          information as Step 1.
+          {flowContext === 'quick-transaction'
+            ? 'We prefilled fields from the listing. Adjust anything, then you will confirm your role and create the transaction.'
+            : 'We prefilled fields from the listing. Adjust anything before continuing to templates — this is the same information as Step 1.'}
         </p>
       </div>
 
@@ -142,7 +153,7 @@ export function MlsListingReviewPanel({ listing, onBack, onApply }: MlsListingRe
 
         <div className="flex justify-end pt-2">
           <Button type="submit" variant="accent" disabled={!valid} className="rounded-xl px-6 py-3">
-            Use listing & continue →
+            {submitButtonLabel ?? 'Use listing & continue →'}
           </Button>
         </div>
       </form>

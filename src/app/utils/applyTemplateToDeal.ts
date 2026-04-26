@@ -1,5 +1,6 @@
 import type { Deal, DocumentItem, Task } from '../types';
 import type { TransactionTemplate } from '../types/template';
+import { templateStageToTaskClosingPhase } from './dealPhaseFromTasks';
 
 /** Offset task due dates from the deal's closing date using template offsets (negative = before closing). */
 export function computeDueDateFromClosing(closingDateStr: string, daysFromClosing: number): string {
@@ -28,7 +29,9 @@ export function appendTasksFromTemplate(
     dealId: deal.id,
     name: tt.name,
     dueDate: computeDueDateFromClosing(deal.closingDate, tt.daysFromClosing),
-    status: 'upcoming',
+    status: 'upcoming' as const,
+    phase: templateStageToTaskClosingPhase(tt.stage),
+    ...(tt.isGate === true ? { isGate: true as const } : {}),
     ...(defaultAssigneeId !== undefined ? { assigneeId: defaultAssigneeId } : {}),
   }));
 }

@@ -1,6 +1,17 @@
 // Core type definitions for CloseFlow MVP
 
 export type TaskStatus = 'upcoming' | 'active' | 'at-risk' | 'overdue' | 'complete';
+
+/**
+ * Closing section for checklist tasks — drives {@link computeDealPhase} when set.
+ * Aligns with template `stage` / deal `pipelineStage` via mapping helpers in `dealPhaseFromTasks`.
+ */
+export type TaskClosingPhase =
+  | 'under-contract'
+  | 'inspection'
+  | 'financing'
+  | 'escrow'
+  | 'closing';
 export type DealStatus = 'active' | 'at-risk' | 'overdue' | 'complete';
 
 /** Pipeline kanban columns — explicit user/data controlled; not derived from health. */
@@ -12,6 +23,14 @@ export type DealPipelineStage =
   | 'closing';
 export type DocumentStatus = 'not-started' | 'requested' | 'uploaded' | 'awaiting-signature' | 'signed' | 'completed';
 export type SignatureStatus = 'not-required' | 'requested' | 'partially-signed' | 'fully-signed';
+
+/** V1: external link or uploaded file row vs legacy checklist-only row. */
+export type DocumentAttachmentKind = 'link' | 'file';
+
+/** Payload from Add Document modal (Deal detail) — upload or attach link. */
+export type AddDealDocumentPayload =
+  | { kind: 'link'; url: string; name?: string }
+  | { kind: 'file'; file: File; name?: string };
 
 /** Document placeholders applied with a workflow template at deal creation (local MVP). */
 export interface WorkflowDocumentStub {
@@ -36,10 +55,26 @@ export interface TaskTemplate {
   assigneeRole?: string;
 }
 
+/** Workspace permission tier (V1 — applies workspace-wide, not per-deal). */
+export type WorkspacePermissionRole = 'owner' | 'collaborator' | 'viewer';
+
+/** Closing-side label for roster / People (display + grouping only). */
+export type WorkspacePartyLabel = 'buyer' | 'seller' | 'agent' | 'lender' | 'escrow' | 'other';
+
+/** Payload from “Add person” on deal detail — persisted to workspace roster (V1, not per-deal). */
+export type AddWorkspacePersonInput = {
+  name: string;
+  email: string;
+  partyLabel: WorkspacePartyLabel;
+  permissionRole: WorkspacePermissionRole;
+};
+
 export interface User {
   id: string;
   name: string;
   email: string;
+  partyLabel?: WorkspacePartyLabel;
+  permissionRole?: WorkspacePermissionRole;
 }
 
 export interface Deal {
@@ -62,6 +97,10 @@ export interface Task {
   dueDate: string;
   status: TaskStatus;
   assigneeId?: string;
+  /** When set (or inferable from starter titles), deal phase can be derived from task completion. */
+  phase?: TaskClosingPhase;
+  /** When true, only gate tasks must complete to leave this phase (non-gates optional). */
+  isGate?: boolean;
 }
 
 export interface Message {
@@ -81,4 +120,9 @@ export interface DocumentItem {
   dueDate?: string;
   referenceLink?: string;
   notes?: string;
+  attachmentKind?: DocumentAttachmentKind;
+  /** Convex `_storage` id (opaque string on the client). */
+  fileStorageId?: string;
+  /** Signed download URL (snapshot) or mock `URL.createObjectURL` for opening the file. */
+  fileUrl?: string;
 }

@@ -7,6 +7,7 @@ import {
   SEED_WORKSPACE_PEOPLE,
   type MockDealKey,
 } from './seedData';
+import { syncDealPipelineStageFromTasksIfNeeded } from './dealPhaseSync';
 
 /**
  * Block obvious production deployments unless explicitly overridden.
@@ -57,6 +58,8 @@ export const seedDevWorkspace = internalMutation({
         userId: row.userId,
         name: row.name,
         email: row.email,
+        ...(row.partyLabel !== undefined ? { partyLabel: row.partyLabel } : {}),
+        ...(row.permissionRole !== undefined ? { permissionRole: row.permissionRole } : {}),
       });
     }
 
@@ -88,6 +91,8 @@ export const seedDevWorkspace = internalMutation({
         dueDate: t.dueDate,
         status: t.status,
         ...(t.assigneeId !== undefined ? { assigneeId: t.assigneeId } : {}),
+        ...(t.phase !== undefined ? { phase: t.phase } : {}),
+        ...(t.isGate === true ? { isGate: true } : {}),
       });
     }
 
@@ -103,6 +108,10 @@ export const seedDevWorkspace = internalMutation({
         ...(doc.referenceLink !== undefined ? { referenceLink: doc.referenceLink } : {}),
         ...(doc.notes !== undefined ? { notes: doc.notes } : {}),
       });
+    }
+
+    for (const dealId of dealIdByMock.values()) {
+      await syncDealPipelineStageFromTasksIfNeeded(ctx, dealId);
     }
 
     return {

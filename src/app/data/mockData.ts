@@ -2,9 +2,27 @@ import { User, Deal, Task, Message, DocumentItem } from '../types';
 
 // Mock users
 export const mockUsers: User[] = [
-  { id: 'u1', name: 'Sarah Martinez', email: 'sarah@closeflow.com' },
-  { id: 'u2', name: 'John Smith', email: 'john@realty.com' },
-  { id: 'u3', name: 'Emily Chen', email: 'emily@homes.com' },
+  {
+    id: 'u1',
+    name: 'Sarah Martinez',
+    email: 'sarah@closeflow.com',
+    partyLabel: 'agent',
+    permissionRole: 'owner',
+  },
+  {
+    id: 'u2',
+    name: 'John Smith',
+    email: 'john@realty.com',
+    partyLabel: 'buyer',
+    permissionRole: 'collaborator',
+  },
+  {
+    id: 'u3',
+    name: 'Emily Chen',
+    email: 'emily@homes.com',
+    partyLabel: 'lender',
+    permissionRole: 'viewer',
+  },
 ];
 
 // Mock deals
@@ -17,7 +35,7 @@ export const mockDeals: Deal[] = [
     closingDate: '2026-05-15',
     status: 'active',
     createdAt: '2026-04-01',
-    pipelineStage: 'under-contract',
+    pipelineStage: 'due-diligence',
     archived: false,
   },
   {
@@ -39,7 +57,7 @@ export const mockDeals: Deal[] = [
     closingDate: '2026-05-30',
     status: 'active',
     createdAt: '2026-04-10',
-    pipelineStage: 'financing',
+    pipelineStage: 'under-contract',
     archived: false,
   },
   {
@@ -55,7 +73,7 @@ export const mockDeals: Deal[] = [
   },
 ];
 
-// Mock tasks
+// Mock tasks — `phase` enables auto pipeline progression in deal detail / Convex sync.
 export const mockTasks: Task[] = [
   // Deal 1 tasks
   {
@@ -65,6 +83,8 @@ export const mockTasks: Task[] = [
     dueDate: '2026-04-20',
     status: 'complete',
     assigneeId: 'u1',
+    phase: 'under-contract',
+    isGate: true,
   },
   {
     id: 't2',
@@ -73,6 +93,7 @@ export const mockTasks: Task[] = [
     dueDate: '2026-04-18',
     status: 'at-risk',
     assigneeId: 'u2',
+    phase: 'inspection',
   },
   {
     id: 't3',
@@ -81,6 +102,7 @@ export const mockTasks: Task[] = [
     dueDate: '2026-04-22',
     status: 'active',
     assigneeId: 'u1',
+    phase: 'financing',
   },
   {
     id: 't4',
@@ -88,6 +110,7 @@ export const mockTasks: Task[] = [
     name: 'Title search completed',
     dueDate: '2026-04-28',
     status: 'upcoming',
+    phase: 'escrow',
   },
   {
     id: 't5',
@@ -95,6 +118,7 @@ export const mockTasks: Task[] = [
     name: 'Final walkthrough',
     dueDate: '2026-05-14',
     status: 'upcoming',
+    phase: 'closing',
   },
   // Deal 2 tasks
   {
@@ -104,6 +128,7 @@ export const mockTasks: Task[] = [
     dueDate: '2026-04-14',
     status: 'overdue',
     assigneeId: 'u3',
+    phase: 'inspection',
   },
   {
     id: 't7',
@@ -112,6 +137,7 @@ export const mockTasks: Task[] = [
     dueDate: '2026-04-16',
     status: 'at-risk',
     assigneeId: 'u2',
+    phase: 'financing',
   },
   {
     id: 't8',
@@ -119,6 +145,7 @@ export const mockTasks: Task[] = [
     name: 'Insurance binder required',
     dueDate: '2026-04-23',
     status: 'active',
+    phase: 'financing',
   },
   // Deal 3 tasks
   {
@@ -128,6 +155,7 @@ export const mockTasks: Task[] = [
     dueDate: '2026-04-20',
     status: 'active',
     assigneeId: 'u1',
+    phase: 'under-contract',
   },
   {
     id: 't10',
@@ -135,6 +163,7 @@ export const mockTasks: Task[] = [
     name: 'HOA documents requested',
     dueDate: '2026-04-25',
     status: 'upcoming',
+    phase: 'escrow',
   },
   {
     id: 't11',
@@ -143,6 +172,7 @@ export const mockTasks: Task[] = [
     dueDate: '2026-03-01',
     status: 'complete',
     assigneeId: 'u1',
+    phase: 'closing',
   },
 ];
 

@@ -1,6 +1,7 @@
 import { mutation } from './_generated/server';
 import { v } from 'convex/values';
 import { elevateDealStatusIfDerivedAtRisk } from './dealDerivedHealth';
+import { syncDealPipelineStageFromTasksIfNeeded } from './dealPhaseSync';
 import { assertCustomTemplateInWorkspace, assertDealInWorkspace, requireWorkspaceMember } from './workspaceAccess';
 
 const taskStatus = v.union(
@@ -41,6 +42,16 @@ export const applyTemplateToDeal = mutation({
         dueDate: v.string(),
         status: taskStatus,
         assigneeId: v.optional(v.string()),
+        phase: v.optional(
+          v.union(
+            v.literal('under-contract'),
+            v.literal('inspection'),
+            v.literal('financing'),
+            v.literal('escrow'),
+            v.literal('closing'),
+          ),
+        ),
+        isGate: v.optional(v.boolean()),
       }),
     ),
     documents: v.array(
@@ -70,6 +81,8 @@ export const applyTemplateToDeal = mutation({
         dueDate: t.dueDate,
         status: t.status,
         ...(t.assigneeId !== undefined ? { assigneeId: t.assigneeId } : {}),
+        ...(t.phase !== undefined ? { phase: t.phase } : {}),
+        ...(t.isGate !== undefined ? { isGate: t.isGate } : {}),
       });
     }
 
@@ -86,6 +99,7 @@ export const applyTemplateToDeal = mutation({
     }
 
     await elevateDealStatusIfDerivedAtRisk(ctx, args.dealId);
+    await syncDealPipelineStageFromTasksIfNeeded(ctx, args.dealId);
 
     if (args.customTemplateId) {
       const tmpl = await ctx.db.get(args.customTemplateId);

@@ -7,6 +7,16 @@ import { CopyTextButton } from '../ui/CopyTextButton';
 import { Button } from '../ui/button';
 import { shouldUseConvexWorkspaceReads } from '../../dealDataSource';
 import { mockUsers } from '../../data/mockData';
+import type { WorkspacePartyLabel, WorkspacePermissionRole } from '../../types';
+import { partySectionTitle, permissionRoleLabel } from '../../utils/workspacePermissions';
+
+type RosterListRow = {
+  userId: string;
+  name: string;
+  email: string;
+  partyLabel?: WorkspacePartyLabel;
+  permissionRole?: WorkspacePermissionRole;
+};
 
 const inputClass =
   'mt-1 w-full rounded-lg border border-input-border bg-input-bg px-3 py-2 text-sm text-text-primary shadow-none placeholder:text-text-muted focus:border-border-strong focus:outline-none focus:ring-2 focus:ring-accent-blue/25';
@@ -39,10 +49,18 @@ function WorkspaceRosterDemoReadonly() {
       </p>
       <ul className="mt-6 divide-y divide-border-subtle rounded-lg border border-border-subtle bg-bg-surface">
         {mockUsers.map((u) => (
-          <li key={u.id} className="flex flex-col gap-0.5 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-medium text-text-primary">{u.name}</span>
-            <span className="text-text-secondary">{u.email}</span>
-            <span className="text-xs text-text-muted">Roster id: {u.id}</span>
+          <li key={u.id} className="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <span className="font-medium text-text-primary">{u.name}</span>
+              <div className="text-text-secondary">{u.email}</div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-text-muted">
+              <span>{partySectionTitle(u.partyLabel ?? 'other')}</span>
+              <span className="text-text-muted/80">·</span>
+              <span>{permissionRoleLabel(u.permissionRole)}</span>
+              <span className="text-text-muted/80">·</span>
+              <span className="font-mono">id {u.id}</span>
+            </div>
           </li>
         ))}
       </ul>
@@ -132,8 +150,9 @@ function WorkspaceRosterPageConvex() {
       <div className="mb-10 max-w-xl rounded-lg border border-border-subtle bg-bg-surface p-6 shadow-sm dark:shadow-none">
         <h2 className="text-sm font-semibold text-text-primary">Add person to roster</h2>
         <p className="mt-1 text-xs text-text-muted">
-          Use their real sign-in email (Gmail, company SSO email, etc.). Optional roster id defaults to a
-          generated value for assignees and chat.
+          Use their real sign-in email (Gmail, company SSO email, etc.). Optional roster id defaults to a generated
+          value for assignees and chat. Party and permission columns are set in seed data for now — structured
+          invites later.
         </p>
         <form className="mt-4 space-y-4" onSubmit={onSubmit}>
           {formError ? (
@@ -232,14 +251,22 @@ function WorkspaceRosterPageConvex() {
                   <th className="px-4 py-2">Roster id</th>
                   <th className="px-4 py-2">Name</th>
                   <th className="px-4 py-2">Email</th>
+                  <th className="px-4 py-2">Party</th>
+                  <th className="px-4 py-2">Role</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {(rows as RosterListRow[]).map((row) => (
                   <tr key={row.userId} className="border-b border-border-subtle last:border-0">
                     <td className="px-4 py-2.5 font-mono text-xs text-text-secondary">{row.userId}</td>
                     <td className="px-4 py-2.5 text-text-primary">{row.name}</td>
                     <td className="px-4 py-2.5 text-text-secondary">{row.email}</td>
+                    <td className="px-4 py-2.5 text-xs text-text-secondary">
+                      {partySectionTitle(row.partyLabel ?? 'other')}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-text-muted">
+                      {permissionRoleLabel(row.permissionRole)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

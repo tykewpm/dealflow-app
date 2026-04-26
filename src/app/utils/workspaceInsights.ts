@@ -95,6 +95,60 @@ function countActiveBuckets(
   return { atRiskCount, stalledCount, readyToCloseCount, closingSoonCount };
 }
 
+/** Dashboard mission-control row — same buckets as {@link computeFocusTodayInsights}. */
+export type MissionControlFocusCounts = {
+  closingsAtRisk: number;
+  closingsStalled: number;
+  closingsReady: number;
+};
+
+export function computeMissionControlFocusCounts(
+  activeDeals: Deal[],
+  tasks: Task[],
+  documents: DocumentItem[],
+  messages: Message[],
+): MissionControlFocusCounts {
+  const b = countActiveBuckets(activeDeals, tasks, documents, messages);
+  return {
+    closingsAtRisk: b.atRiskCount,
+    closingsStalled: b.stalledCount,
+    closingsReady: b.readyToCloseCount,
+  };
+}
+
+export type MissionControlFocusKind = 'at-risk' | 'stalled' | 'ready';
+
+/** First deal id matching the mission-control bucket (stable iteration order). */
+export function findFirstDealIdForMissionControlFocus(
+  kind: MissionControlFocusKind,
+  activeDeals: Deal[],
+  tasks: Task[],
+  documents: DocumentItem[],
+  messages: Message[],
+): string | undefined {
+  for (const deal of activeDeals) {
+    const dealTasks = tasks.filter((t) => t.dealId === deal.id);
+    const dealDocs = documents.filter((d) => d.dealId === deal.id);
+    const detection = detectDealIssues(deal, dealTasks, dealDocs);
+    if (kind === 'at-risk') {
+      if (detection.health === 'at-risk' || deal.status === 'at-risk') return deal.id;
+    }
+    if (kind === 'stalled') {
+      if (isDealStallElevated(deal, dealTasks, dealDocs, messages)) return deal.id;
+    }
+    if (kind === 'ready') {
+      if (
+        deal.pipelineStage === 'closing' &&
+        detection.health === 'on-track' &&
+        deal.status !== 'complete'
+      ) {
+        return deal.id;
+      }
+    }
+  }
+  return undefined;
+}
+
 /**
  * 2–4 concise insights for the Focus today strip (active deals only).
  */

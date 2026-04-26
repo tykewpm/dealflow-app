@@ -8,7 +8,6 @@ import { CreateDealStartChoice } from './CreateDealStartChoice';
 import { MlsListingSearchPanel } from './MlsListingSearchPanel';
 import { MlsListingReviewPanel } from './MlsListingReviewPanel';
 import { workflowTemplates } from '../../data/workflowTemplates';
-import { useWorkspaceGo } from '../../context/WorkspaceLinkBaseContext';
 import { computeDueDateFromClosing } from '../../utils/applyTemplateToDeal';
 import type { MlsListingPreview } from '../../services/mls/mlsListingTypes';
 
@@ -26,7 +25,6 @@ interface CreateDealFlowProps {
 type PreMainStep = 'choice' | 'mls-search' | 'mls-review';
 
 export function CreateDealFlow({ onCreateDeal }: CreateDealFlowProps) {
-  const go = useWorkspaceGo();
   const [preMain, setPreMain] = useState<PreMainStep | null>('choice');
   const [mlsPick, setMlsPick] = useState<MlsListingPreview | null>(null);
 
@@ -155,32 +153,10 @@ export function CreateDealFlow({ onCreateDeal }: CreateDealFlowProps) {
     setCurrentStep(currentStep - 1);
   };
 
-  const handleCancel = () => {
-    go('/');
-  };
-
-  const closeBar = (
-    <div className="mx-auto max-w-7xl px-8 pt-6 pb-2">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleCancel}
-          className="rounded-md p-2 text-text-muted transition-all hover:bg-bg-elevated/60 hover:text-text-primary"
-          aria-label="Close"
-        >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-
   if (preMain !== null) {
     return (
       <div className="flex h-full w-full flex-col bg-bg-app">
-        {closeBar}
-        <div className="flex-1 overflow-y-auto pb-12">
+        <div className="flex-1 overflow-y-auto px-8 pb-12 pt-6">
           {preMain === 'choice' ? (
             <CreateDealStartChoice
               onChooseMls={() => setPreMain('mls-search')}
@@ -220,9 +196,7 @@ export function CreateDealFlow({ onCreateDeal }: CreateDealFlowProps) {
       />
 
       <div className="flex-1 overflow-y-auto bg-bg-app">
-        {closeBar}
-
-        <div className="mx-auto max-w-7xl px-8 pb-12">
+        <div className="mx-auto max-w-7xl px-8 pb-12 pt-6">
           {currentStep === 1 && (
             <Step1BasicInfo
               propertyAddress={propertyAddress}

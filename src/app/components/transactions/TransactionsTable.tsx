@@ -1,24 +1,15 @@
-import { Deal, DealPipelineStage, DocumentItem, Message, Task } from '../../types';
-import { ProgressBar } from '../shared/ProgressBar';
-import { calculateProgress, formatDate } from '../../utils/dealUtils';
+import { Deal, DocumentItem, Message, Task } from '../../types';
+import { formatDate } from '../../utils/dealUtils';
 import { computeDealNextAction } from '../../utils/dealNextActionEngine';
 import { detectDealIssues } from '../../utils/dealIssueDetection';
 import { nextActionAccentDotClass } from '../../utils/nextActionDisplay';
 import { isDealClosingSoon, isDealStalledByActivity } from '../../utils/workspaceInsights';
+import { pipelineStageDisplayLabel } from '../../utils/pipelineStageLabels';
 import { CheckCircle2, AlertCircle, Clock, ChevronRight } from 'lucide-react';
 
 import { ParityTable, ParityTbody } from '../ui/verbatim-table';
 import { cn } from '../ui/utils';
 import { healthChipClasses, pipelineStageChipClasses } from '../../utils/statusSurfaceTokens';
-
-/** Persisted pipeline stage — same labels as Deal Detail (not derived from deal.status). */
-const PIPELINE_STAGE_LABEL: Record<DealPipelineStage, string> = {
-  'under-contract': 'Under Contract',
-  'due-diligence': 'Due Diligence',
-  financing: 'Financing',
-  'pre-closing': 'Pre-Closing',
-  closing: 'Closing',
-};
 
 interface TransactionsTableProps {
   deals: Deal[];
@@ -55,12 +46,17 @@ export function TransactionsTable({ deals, tasks, documents, messages, onDealCli
     return (
       <div className="rounded-lg border border-border-subtle bg-bg-surface p-12 text-center shadow-sm transition-[background-color,border-color] duration-150 ease-out dark:shadow-none">
         <div className="mb-4 text-text-muted/40">
-          <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg className="mx-auto h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         </div>
-        <h3 className="mb-2 font-semibold text-text-primary">No transactions found</h3>
-        <p className="text-sm text-text-muted">Try adjusting your filters or search query</p>
+        <h3 className="mb-2 font-semibold text-text-primary">No closings match</h3>
+        <p className="text-sm text-text-muted">Try adjusting filters or search.</p>
       </div>
     );
   }
@@ -68,42 +64,38 @@ export function TransactionsTable({ deals, tasks, documents, messages, onDealCli
   return (
     <div className="overflow-hidden rounded-lg border border-border-subtle bg-bg-surface shadow-sm transition-[background-color,border-color] duration-150 ease-out dark:shadow-none">
       <div className="min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-        <ParityTable className="min-w-[680px]">
+        <ParityTable className="min-w-[560px]">
           <thead>
             <tr className="border-b border-border-subtle bg-bg-elevated/40 dark:bg-bg-elevated/25">
               <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:px-6 sm:text-xs">
-                Property
+                Address
               </th>
               <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:px-6 sm:text-xs">
-                Pipeline
+                Phase
               </th>
-              <th className="min-w-[220px] px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:min-w-[280px] sm:px-6 sm:text-xs">
-                Next Action
+              <th className="min-w-[200px] px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:min-w-[260px] sm:px-6 sm:text-xs">
+                Next step
               </th>
               <th
                 className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:px-6 sm:text-xs"
-                title="Detected from checklist and closing signals — not pipeline or record status"
+                title="Detected from checklist and closing signals"
               >
                 Risk
               </th>
               <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:px-6 sm:text-xs">
-                Progress
-              </th>
-              <th className="px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-text-muted sm:px-6 sm:text-xs">
-                Closing Date
+                Closing date
               </th>
               <th className="px-2 py-3 sm:px-4" aria-hidden />
             </tr>
           </thead>
           <ParityTbody>
-            {deals.map(deal => {
-              const dealTasks = tasks.filter(t => t.dealId === deal.id);
+            {deals.map((deal) => {
+              const dealTasks = tasks.filter((t) => t.dealId === deal.id);
               const dealDocuments = documents.filter((d) => d.dealId === deal.id);
-              const progress = calculateProgress(dealTasks);
               const nextAction = computeDealNextAction(deal, dealTasks, dealDocuments, messages);
               const detection = detectDealIssues(deal, dealTasks, dealDocuments);
               const riskStatus = healthDisplay(detection);
-              const pipelineLabel = PIPELINE_STAGE_LABEL[deal.pipelineStage];
+              const pipelineLabel = pipelineStageDisplayLabel(deal.pipelineStage);
               const pipelinePillClass =
                 pipelineStageChipClasses[deal.pipelineStage] ??
                 'border border-border-subtle bg-bg-elevated/60 text-text-secondary';
@@ -123,34 +115,26 @@ export function TransactionsTable({ deals, tasks, documents, messages, onDealCli
                     surfaceRow && 'bg-accent-amber-soft/[0.08] dark:bg-accent-amber-soft/[0.06]',
                   )}
                 >
-                  {/* Property */}
                   <td className="px-3 py-3 sm:px-6 sm:py-4">
-                    <div className="mb-0.5 font-medium text-text-primary">
-                      {deal.propertyAddress}
-                    </div>
-                    <div className="text-sm text-text-secondary">
-                      {deal.buyerName}
-                    </div>
+                    <div className="font-medium text-text-primary">{deal.propertyAddress}</div>
                   </td>
 
-                  {/* Pipeline — persisted deal.pipelineStage */}
                   <td className="px-3 py-3 sm:px-6 sm:py-4">
                     <span
                       className={`inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium ${pipelinePillClass}`}
-                      title="Pipeline stage saved on the deal — not health"
+                      title="Closing phase on this transaction"
                     >
                       {pipelineLabel}
                     </span>
                   </td>
 
-                  {/* Next Action — compact display from dealNextActionEngine */}
                   <td className="px-3 py-3 sm:px-6 sm:py-4">
                     <div
-                      className="flex items-start gap-2 min-w-0"
+                      className="flex min-w-0 items-start gap-2"
                       data-next-action-rule={nextAction.ruleKey}
                     >
                       <div
-                        className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${nextActionAccentDotClass(nextAction.severity)}`}
+                        className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${nextActionAccentDotClass(nextAction.severity)}`}
                         aria-hidden
                       />
                       <div className="min-w-0">
@@ -166,10 +150,11 @@ export function TransactionsTable({ deals, tasks, documents, messages, onDealCli
                     </div>
                   </td>
 
-                  {/* Risk — dealIssueDetection */}
                   <td className="px-3 py-3 sm:px-6 sm:py-4" data-deal-health={detection.health}>
-                    <div className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${riskStatus.className}`}>
-                      <RiskIcon size={14} />
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${riskStatus.className}`}
+                    >
+                      <RiskIcon size={14} aria-hidden />
                       <span>{riskStatus.label}</span>
                       {riskStatus.issueCount > 0 ? (
                         <span className="font-normal opacity-90 tabular-nums">({riskStatus.issueCount})</span>
@@ -177,28 +162,12 @@ export function TransactionsTable({ deals, tasks, documents, messages, onDealCli
                     </div>
                   </td>
 
-                  {/* Progress */}
                   <td className="px-3 py-3 sm:px-6 sm:py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 min-w-[80px]">
-                        <ProgressBar progress={progress} />
-                      </div>
-                      <span className="whitespace-nowrap text-sm font-medium text-text-muted">
-                        {progress}%
-                      </span>
-                    </div>
+                    <span className="text-sm text-text-primary">{formatDate(deal.closingDate)}</span>
                   </td>
 
-                  {/* Closing Date */}
-                  <td className="px-3 py-3 sm:px-6 sm:py-4">
-                    <span className="text-sm text-text-primary">
-                      {formatDate(deal.closingDate)}
-                    </span>
-                  </td>
-
-                  {/* Arrow */}
                   <td className="px-2 py-3 sm:px-4 sm:py-4">
-                    <ChevronRight className="text-text-muted" size={20} />
+                    <ChevronRight className="text-text-muted" size={20} aria-hidden />
                   </td>
                 </tr>
               );
@@ -207,10 +176,9 @@ export function TransactionsTable({ deals, tasks, documents, messages, onDealCli
         </ParityTable>
       </div>
 
-      {/* Table Footer */}
       <div className="border-t border-border-subtle bg-bg-app px-4 py-3 dark:bg-bg-elevated/25 sm:px-6 sm:py-4">
-        <div className="flex items-center justify-between text-sm text-text-muted">
-          <span>Showing {deals.length} {deals.length === 1 ? 'transaction' : 'transactions'}</span>
+        <div className="text-sm text-text-muted">
+          Showing {deals.length} {deals.length === 1 ? 'closing' : 'closings'}
         </div>
       </div>
     </div>

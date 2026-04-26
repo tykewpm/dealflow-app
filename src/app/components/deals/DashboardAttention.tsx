@@ -14,6 +14,19 @@ const HEALTH_LABEL: Record<DashboardAttentionItem['health'], string> = {
   'on-track': 'On track',
 };
 
+function issueSummary(row: DashboardAttentionItem): string {
+  if (row.overdueCount > 0) {
+    return `${row.overdueCount} overdue`;
+  }
+  if (row.issueCount > 0) {
+    return `${row.issueCount} open issue${row.issueCount === 1 ? '' : 's'}`;
+  }
+  if (row.awaitingSignatureCount > 0) {
+    return `${row.awaitingSignatureCount} awaiting signature`;
+  }
+  return row.nextActionTitle;
+}
+
 export function DashboardAttention({ items, onSelectDeal }: DashboardAttentionProps) {
   const [showAll, setShowAll] = useState(false);
   const PREVIEW = 5;
@@ -29,12 +42,12 @@ export function DashboardAttention({ items, onSelectDeal }: DashboardAttentionPr
         <div className="flex items-center justify-between border-b border-border-subtle bg-accent-amber-soft px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center gap-2">
             <AlertCircle className="text-accent-amber" size={20} aria-hidden />
-            <h2 className="font-semibold text-text-primary">Needs attention</h2>
+            <h2 className="font-semibold text-text-primary">Closings that need attention</h2>
             <span className="rounded-full border border-border-subtle bg-bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary">
               {items.length}
             </span>
           </div>
-          <span className="hidden text-xs text-text-muted sm:inline">From deal health &amp; next actions</span>
+          <span className="hidden text-xs text-text-muted sm:inline">Health + next actions</span>
         </div>
 
         <div className="divide-y divide-border-subtle">
@@ -43,7 +56,7 @@ export function DashboardAttention({ items, onSelectDeal }: DashboardAttentionPr
               key={row.deal.id}
               type="button"
               onClick={() => onSelectDeal(row.deal.id)}
-              className="group flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-[background-color] duration-150 ease-out hover:bg-bg-elevated/50 sm:gap-4 sm:px-6 sm:py-4"
+              className="group flex w-full flex-col gap-3 px-4 py-3 text-left transition-[background-color] duration-150 ease-out hover:bg-bg-elevated/50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-6 sm:py-4"
             >
               <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
@@ -54,31 +67,21 @@ export function DashboardAttention({ items, onSelectDeal }: DashboardAttentionPr
                     {HEALTH_LABEL[row.health]}
                   </span>
                 </div>
-                <p className="line-clamp-2 text-sm font-medium text-text-primary">{row.nextActionTitle}</p>
+                <p className="line-clamp-2 text-sm text-text-secondary">{issueSummary(row)}</p>
                 {row.nextActionSubtitle ? (
                   <p className="mt-0.5 line-clamp-1 text-xs text-text-muted">{row.nextActionSubtitle}</p>
                 ) : null}
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-text-muted">
-                  {row.issueCount > 0 ? (
-                    <span>
-                      {row.issueCount} issue{row.issueCount === 1 ? '' : 's'}
-                    </span>
-                  ) : null}
-                  {row.overdueCount > 0 ? (
-                    <span className="font-medium text-accent-red">
-                      {row.overdueCount} overdue
-                    </span>
-                  ) : null}
-                  {row.awaitingSignatureCount > 0 ? (
-                    <span>{row.awaitingSignatureCount} awaiting signature</span>
-                  ) : null}
-                </div>
               </div>
-              <ChevronRight
-                className="mt-1 shrink-0 text-text-muted transition-colors duration-150 ease-out group-hover:text-text-secondary"
-                size={20}
-                aria-hidden
-              />
+              <div className="flex shrink-0 items-center gap-2 self-stretch sm:flex-col sm:items-end sm:gap-1">
+                <span className="rounded-md border border-border-subtle bg-bg-app px-2.5 py-1 text-xs font-medium text-accent-blue dark:bg-bg-elevated/50">
+                  {row.primaryActionLabel}
+                </span>
+                <ChevronRight
+                  className="hidden text-text-muted transition-colors duration-150 ease-out group-hover:text-text-secondary sm:block"
+                  size={18}
+                  aria-hidden
+                />
+              </div>
             </button>
           ))}
         </div>

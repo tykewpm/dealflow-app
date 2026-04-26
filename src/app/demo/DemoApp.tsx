@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate, useOutletContext } from 'react-router-dom';
-import type { Deal, DocumentItem, Message, Task, User } from '../types';
+import type { AddWorkspacePersonInput, Deal, DocumentItem, Message, Task, User } from '../types';
 import type { TransactionTemplate } from '../types/template';
 import { mockDeals, mockTasks, mockMessages, mockDocuments, mockUsers } from '../data/mockData';
 import { beginIsolatedDemoWorkspace, endIsolatedDemoWorkspace } from '../dealDataSource';
-import { WorkspaceLinkBaseProvider } from '../context/WorkspaceLinkBaseContext';
+import { WorkspaceLinkBaseProvider, useWorkspaceGo } from '../context/WorkspaceLinkBaseContext';
 import { AppShell } from '../components/layout/AppShell';
 import { useWorkspaceCurrentUser } from '../../hooks/useWorkspaceCurrentUser';
-import { isBuiltInTemplateId } from '../data/templateData';
 import {
   isPersistedUserTemplate,
   recordUserTemplateApplyUsage,
@@ -33,6 +32,8 @@ export type DemoWorkspaceOutletContext = {
   ) => void;
   onWorkloadTaskAssignee: (taskId: string, assigneeId: string | null) => void;
   onSetDealArchived: (dealId: string, archived: boolean) => void;
+  onStartNewClosing: () => void;
+  onAddWorkspacePerson: (input: AddWorkspacePersonInput) => void | Promise<void>;
 };
 
 export function useDemoWorkspaceOutletContext(): DemoWorkspaceOutletContext {
@@ -73,8 +74,9 @@ export function DemoWorkspaceShell() {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [documents, setDocuments] = useState<DocumentItem[]>(mockDocuments);
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const { currentUserId, setCurrentUserId } = useWorkspaceCurrentUser(users);
+  const go = useWorkspaceGo();
 
   const handleWorkloadTaskAssignee = (taskId: string, assigneeId: string | null) => {
     setTasks((prev) =>
@@ -92,6 +94,32 @@ export function DemoWorkspaceShell() {
   const handleSetDealArchived = (dealId: string, archived: boolean) => {
     setDeals((prev) => prev.map((d) => (d.id === dealId ? { ...d, archived } : d)));
   };
+
+  const handleAddWorkspacePerson = useCallback(async (input: AddWorkspacePersonInput) => {
+    const emailLower = input.email.trim().toLowerCase();
+    let duplicate = false;
+    setUsers((prev) => {
+      if (prev.some((u) => u.email.trim().toLowerCase() === emailLower)) {
+        duplicate = true;
+        return prev;
+      }
+      const id = `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      return [
+        ...prev,
+        {
+          id,
+          name: input.name.trim(),
+          email: input.email.trim(),
+          partyLabel: input.partyLabel,
+          permissionRole: input.permissionRole,
+        },
+      ];
+    });
+    if (duplicate) {
+      window.alert('That email is already on the workspace roster.');
+      throw new Error('duplicate email');
+    }
+  }, []);
 
   const handleApplyTemplate = (
     template: TransactionTemplate,
@@ -130,6 +158,8 @@ export function DemoWorkspaceShell() {
     onApplyTemplate: handleApplyTemplate,
     onWorkloadTaskAssignee: handleWorkloadTaskAssignee,
     onSetDealArchived: handleSetDealArchived,
+    onStartNewClosing: () => go('/deals/new'),
+    onAddWorkspacePerson: handleAddWorkspacePerson,
   };
 
   return (

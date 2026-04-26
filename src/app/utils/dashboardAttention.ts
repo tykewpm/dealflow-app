@@ -11,6 +11,8 @@ export interface DashboardAttentionItem {
   awaitingSignatureCount: number;
   nextActionTitle: string;
   nextActionSubtitle?: string;
+  /** Single recommended action label (from next-action engine). */
+  primaryActionLabel: string;
 }
 
 function healthSortKey(h: DealHealthLevel): number {
@@ -53,6 +55,7 @@ export function getDashboardAttentionItems(
       awaitingSignatureCount: detection.awaitingSignatureCount,
       nextActionTitle: next.title,
       nextActionSubtitle: next.subtitle,
+      primaryActionLabel: next.primaryCta.label,
     });
   }
 

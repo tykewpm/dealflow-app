@@ -74,6 +74,16 @@ export function isDocumentOverdue(document: DocumentItem): boolean {
 /**
  * Get source label from reference link
  */
+/** Short label from a URL when the user leaves display name blank. */
+export function displayLabelFromUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.hostname.replace(/^www\./, '') || 'Link';
+  } catch {
+    return 'Link';
+  }
+}
+
 export function getSourceLabel(referenceLink?: string): string | null {
   if (!referenceLink) return null;
 

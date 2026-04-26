@@ -1,6 +1,7 @@
 import { mutation } from './_generated/server';
 import { v } from 'convex/values';
 import { elevateDealStatusIfDerivedAtRisk } from './dealDerivedHealth';
+import { syncDealPipelineStageFromTasksIfNeeded } from './dealPhaseSync';
 import { assertTaskInWorkspace, requireWorkspaceMember } from './workspaceAccess';
 
 const taskStatus = v.union(
@@ -24,6 +25,7 @@ export const updateTaskStatus = mutation({
     if (!row) throw new Error('Task not found');
     await ctx.db.patch(args.taskId, { status: args.status });
     await elevateDealStatusIfDerivedAtRisk(ctx, row.dealId);
+    await syncDealPipelineStageFromTasksIfNeeded(ctx, row.dealId);
     return null;
   },
 });

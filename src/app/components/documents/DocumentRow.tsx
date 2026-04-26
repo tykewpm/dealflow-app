@@ -2,6 +2,7 @@ import { DocumentItem as DocumentItemType } from '../../types';
 import { formatDate } from '../../utils/dealUtils';
 import { isDocumentOverdue, getSourceLabel } from '../../utils/documentHelpers';
 import { DocumentPriority } from '../../utils/documentNextAction';
+import { getDocumentOpenHref, isAttachmentDocument } from '../../utils/documentOpenUrl';
 
 interface DocumentRowProps {
   document: DocumentItemType;
@@ -74,6 +75,8 @@ export function DocumentRow({
   const signatureStyle = signatureConfig[document.signatureStatus];
   const isOverdue = isDocumentOverdue(document);
   const sourceLabel = getSourceLabel(document.referenceLink);
+  const openHref = getDocumentOpenHref(document);
+  const isAttachment = isAttachmentDocument(document);
 
   // Priority styling
   const priorityConfig = {
@@ -98,16 +101,30 @@ export function DocumentRow({
 
   return (
     <div
-      className={`group cursor-pointer rounded-lg border bg-bg-surface p-5 shadow-sm transition-[background-color,border-color,box-shadow] duration-150 ease-out hover:bg-bg-elevated/25 dark:shadow-none ${priorityStyle.borderClass}`}
+      className={`group rounded-lg border bg-bg-surface p-5 shadow-sm transition-[background-color,border-color,box-shadow] duration-150 ease-out hover:bg-bg-elevated/25 dark:shadow-none ${openHref ? '' : 'cursor-pointer'} ${priorityStyle.borderClass}`}
     >
-      <div className="grid grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-12 items-start gap-6">
         {/* Left: Document Name & Description (5 columns) */}
         <div className="col-span-5 min-w-0">
           {/* Priority Badge */}
-          <div className="flex items-center gap-2 mb-1">
-            <h4 className="truncate text-base font-semibold text-text-primary">
-              {document.name}
-            </h4>
+          <div className="mb-1 flex items-center gap-2">
+            {isAttachment ? (
+              <span className="flex-shrink-0 text-lg leading-none" aria-hidden title={document.attachmentKind === 'file' ? 'File' : 'Link'}>
+                {document.attachmentKind === 'file' ? '📄' : '🔗'}
+              </span>
+            ) : null}
+            {openHref ? (
+              <a
+                href={openHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 truncate text-base font-semibold text-accent-blue underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/30"
+              >
+                {document.name}
+              </a>
+            ) : (
+              <h4 className="truncate text-base font-semibold text-text-primary">{document.name}</h4>
+            )}
             {priority !== 'normal' && (
               <span className={`px-2 py-0.5 rounded text-xs font-semibold border flex-shrink-0 ${priorityStyle.badgeClass}`}>
                 {priorityStyle.label}

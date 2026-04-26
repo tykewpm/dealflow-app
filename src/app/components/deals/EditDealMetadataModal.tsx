@@ -51,7 +51,7 @@ export function EditDealMetadataModal({
       >
         <div className="flex items-center justify-between border-b border-border-subtle px-6 py-4">
           <h2 id="edit-deal-metadata-title" className="font-semibold text-text-primary">
-            Edit deal
+            Edit transaction
           </h2>
           <button
             type="button"

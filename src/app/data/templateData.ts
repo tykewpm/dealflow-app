@@ -2,7 +2,7 @@ import { TransactionTemplate, TemplateTask, TemplateDocument } from '../types/te
 
 // Buyer Rep Templates
 const buyerRepStandardTasks: TemplateTask[] = [
-  { id: 'bt1', name: 'Schedule home inspection', stage: 'under-contract', daysFromClosing: -30 },
+  { id: 'bt1', name: 'Schedule home inspection', stage: 'due-diligence', daysFromClosing: -30, isGate: true },
   { id: 'bt2', name: 'Review inspection report', stage: 'due-diligence', daysFromClosing: -28 },
   { id: 'bt3', name: 'Submit loan application', stage: 'financing', daysFromClosing: -25 },
   { id: 'bt4', name: 'Order appraisal', stage: 'financing', daysFromClosing: -23 },
